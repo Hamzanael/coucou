@@ -1,0 +1,88 @@
+name: Linux
+
+# Builds the Linux (Ubuntu) app from the same Tauri sources as Windows and
+# publishes a .deb and an AppImage. Triggered by tags like `linux-v0.1.1`.
+
+on:
+  push:
+    tags:
+      - 'linux-v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    # The oldest supported runner, so the binaries run on Ubuntu 22.04 and later.
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: windows
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: System libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
+            librsvg2-dev libxdo-dev libssl-dev libdbus-1-dev patchelf
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: windows/package-lock.json
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            windows/target
+          key: linux-cargo-${{ hashFiles('windows/Cargo.lock') }}
+          restore-keys: linux-cargo-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check the tag and every version agree
+        if: startsWith(github.ref, 'refs/tags/linux-v')
+        run: |
+          tag="${GITHUB_REF_NAME#linux-v}"
+          conf=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          pkg=$(node -p "require('./package.json').version")
+          cargo=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
+          echo "tag=$tag conf=$conf package=$pkg cargo=$cargo"
+          [ "$tag" = "$conf" ] && [ "$tag" = "$pkg" ] && [ "$tag" = "$cargo" ]
+
+      - name: Test
+        run: cargo test --workspace
+
+      - name: Build and pack
+        id: pack
+        run: |
+          npm run pack
+          echo "version=$(node -p "require('./src-tauri/tauri.conf.json').version")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Coucou-Linux-${{ steps.pack.outputs.version }}
+          path: |
+            windows/release/Coucou-Linux-${{ steps.pack.outputs.version }}-amd64.deb
+            windows/release/Coucou-Linux-${{ steps.pack.outputs.version }}-x86_64.AppImage
+
+      - name: Publish the release
+        if: startsWith(github.ref, 'refs/tags/linux-v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v="${{ steps.pack.outputs.version }}"
+          # --latest=false: the macOS `v*` releases own the "latest" slot.
+          gh release create "$GITHUB_REF_NAME" \
+            "release/Coucou-Linux-$v-amd64.deb" \
+            "release/Coucou-Linux-$v-x86_64.AppImage" \
+            --title "Coucou for Linux $v" --latest=false \
+            --notes "Ubuntu 22.04+: \`sudo apt install ./Coucou-Linux-$v-amd64.deb\`, or make the AppImage executable and run it."

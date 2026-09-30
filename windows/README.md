@@ -2,13 +2,14 @@
 
 <img src="src-tauri/icons/128x128.png" width="96" alt="Coucou icon">
 
-# Coucou for Windows
+# Coucou for Windows and Linux
 
 **Mochi doesn't get a notch on a PC — so it lives at the top of your screen instead.**
 
 Approve Claude Code permissions, watch your session work, drop a file, chat with Claude, keep an eye on your services — without leaving what you're doing.
 
 ![Windows 10/11](https://img.shields.io/badge/Windows-10%2F11-0078D4?logo=windows)
+![Ubuntu 22.04+](https://img.shields.io/badge/Ubuntu-22.04%2B-E95420?logo=ubuntu&logoColor=white)
 ![Tauri 2](https://img.shields.io/badge/Tauri-2-FFC131?logo=tauri&logoColor=black)
 ![Rust](https://img.shields.io/badge/Rust-backend-000?logo=rust)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
@@ -143,7 +144,55 @@ windows/
 `%LOCALAPPDATA%\Coucou\coucou.log` — hook events, permission decisions, poller
 problems. It stays on your machine.
 
+## Linux (Ubuntu)
+
+The same code builds for Linux. Only a few things differ, and they live in
+`src-tauri/src/platform.rs`, `pipe.rs` and `island.rs`.
+
+**Install** (Ubuntu 22.04 or later, x86-64):
+
+```bash
+sudo apt install ./Coucou-Linux-X.Y.Z-amd64.deb     # or:
+chmod +x Coucou-Linux-X.Y.Z-x86_64.AppImage && ./Coucou-Linux-X.Y.Z-x86_64.AppImage
+```
+
+**Build it yourself:**
+
+```bash
+sudo apt install libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev \
+  libxdo-dev libssl-dev libdbus-1-dev patchelf
+cd windows
+npm install
+npm run pack           # .deb and .AppImage land in windows/release/
+```
+
+| | Windows | Linux |
+|---|---|---|
+| Relay | `coucou-hook.exe` over `\\.\pipe\coucou-<sid>` | `coucou-hook` over `$XDG_RUNTIME_DIR/coucou.sock` (mode 0600, peer uid checked) |
+| Relay copied to | `%LOCALAPPDATA%\Coucou\bin\` | `~/.local/share/coucou/bin/` |
+| Settings | `%APPDATA%\Coucou\settings.json` | `~/.config/coucou/settings.json` |
+| Log | `%LOCALAPPDATA%\Coucou\coucou.log` | `~/.local/share/coucou/coucou.log` |
+| Keys | Windows Credential Manager | Secret Service (GNOME Keyring, KWallet) |
+| Claude Code settings | `%USERPROFILE%\.claude\settings.json` | `~/.claude/settings.json` |
+
+Good to know:
+
+- **Wayland**: Wayland doesn't let an app place a window at the top of the
+  screen, keep it above other windows or read the global cursor. So on Linux
+  Coucou runs through XWayland by default (`GDK_BACKEND=x11`). This works out of the box on
+  Ubuntu's GNOME session. Set `GDK_BACKEND` yourself to override it.
+- **Tray icon**: GNOME needs the *AppIndicator* extension to show it. Ubuntu
+  enables it by default; on vanilla GNOME, install
+  `gnome-shell-extension-appindicator`.
+- **Transparency** needs a compositing window manager (every mainstream
+  desktop has one).
+- A plain `cargo build` gives a dev binary that loads the page from Vite
+  (`npm run dev`). Use `npm run tauri build` or `npm run pack` for a
+  standalone build.
+
 ## What's different from the Mac version
+
+(Everything below applies to Linux too.)
 
 - No notch, so the island lives at the top centre of the screen and retracts into
   the top edge instead of hiding in a notch.
