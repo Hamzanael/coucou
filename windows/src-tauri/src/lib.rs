@@ -99,11 +99,9 @@ fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
 #[tauri::command]
 fn set_collapsed(app: AppHandle, shared: State<Shared>, collapsed: bool) {
     let pref = shared.settings.lock().unwrap().screen.clone();
-    shared.gate.collapsed.store(collapsed, Ordering::Relaxed);
     island::apply_geometry(&app, &pref, collapsed);
     // The wake strip must always take the mouse, and a resize invalidates the flag.
-    island::set_ignore_cursor(&app, false);
-    shared.gate.forget_ignore_state();
+    shared.gate.set_collapsed(&app, collapsed);
     shared.gate.set_active(!collapsed);
 }
 

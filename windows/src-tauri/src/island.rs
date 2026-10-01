@@ -86,6 +86,9 @@ pub struct PollGate {
     pub rect: Mutex<IslandRect>,
     /// Mirrors the window flag so we only call into Win32 when it changes.
     ignoring: AtomicBool,
+    /// Held while the click-through flag is changed, so the poll thread's last
+    /// tick can never re-apply it to a window that has just been collapsed.
+    ignore_lock: Mutex<()>,
 }
 
 impl PollGate {
@@ -96,6 +99,7 @@ impl PollGate {
             collapsed: AtomicBool::new(true),
             rect: Mutex::new(IslandRect::default()),
             ignoring: AtomicBool::new(false),
+            ignore_lock: Mutex::new(()),
         }
     }
 
@@ -103,8 +107,13 @@ impl PollGate {
         *self.rect.lock().unwrap() = rect;
     }
 
-    /// Forces the next poll tick to re-apply the flag (after a window resize).
-    pub fn forget_ignore_state(&self) {
+    /// Collapses or expands the window's input handling: the collapsed window
+    /// (wake strip or clock pill) always takes the mouse, and the next poll tick
+    /// after expanding re-applies click-through from scratch.
+    pub fn set_collapsed(&self, app: &AppHandle, collapsed: bool) {
+        let _guard = self.ignore_lock.lock().unwrap();
+        self.collapsed.store(collapsed, Ordering::Relaxed);
+        set_ignore_cursor(app, false);
         self.ignoring.store(false, Ordering::Relaxed);
     }
 
@@ -433,9 +442,17 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
                     && y <= size.1;
 
                 let accept = on_island || dragging;
-                if gate.ignoring.load(Ordering::Relaxed) == accept {
-                    gate.ignoring.store(!accept, Ordering::Relaxed);
-                    let _ = win.set_ignore_cursor_events(!accept);
+                {
+                    // The tick started before a collapse may only be finishing now:
+                    // a click-through flag applied after it would leave the clock
+                    // pill unable to take the mouse.
+                    let _guard = gate.ignore_lock.lock().unwrap();
+                    if !gate.collapsed.load(Ordering::Relaxed)
+                        && gate.ignoring.load(Ordering::Relaxed) == accept
+                    {
+                        gate.ignoring.store(!accept, Ordering::Relaxed);
+                        let _ = win.set_ignore_cursor_events(!accept);
+                    }
                 }
 
                 let _ = win.emit("cursor", CursorPayload { x, y });
