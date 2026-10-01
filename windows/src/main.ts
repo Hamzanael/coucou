@@ -20,6 +20,7 @@ async function main() {
   if (boot) {
     State.settings = { ...State.settings, ...boot.settings };
     State.clock = boot.clock ?? null;
+    if (boot.domPointer) island.useDomPointer();
   }
   island.applySettings();
   State.loadIntegrationTasks();

@@ -28,6 +28,8 @@ export interface BootInfo {
   hookPath: string;
   /** Present where the island stands in for the desktop's top-bar clock. */
   clock: ClockFormat | null;
+  /** Track the mouse from the page's own events (Linux) instead of the cursor poll. */
+  domPointer: boolean;
 }
 
 export interface ClockFormat {

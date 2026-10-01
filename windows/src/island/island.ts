@@ -562,9 +562,19 @@ export class Island {
 
     // Outside Tauri (plain browser) drive the cursor from DOM events so the
     // island can be inspected with `npm run dev`.
-    if (!IS_TAURI) {
-      window.addEventListener("mousemove", (e) => this.onCursor(e.clientX, e.clientY));
-    }
+    if (!IS_TAURI) this.useDomPointer();
+  }
+
+  /**
+   * Drives hover and Mochi's gaze from the page's own mouse events. On Linux the
+   * window only takes the mouse over the island, so these are exactly the moments
+   * the pointer is on it; leaving that region is a leave.
+   */
+  useDomPointer() {
+    window.addEventListener("mousemove", (e) => this.onCursor(e.clientX, e.clientY));
+    window.addEventListener("mouseout", (e) => {
+      if (e.relatedTarget == null) this.onCursor(-10_000, -10_000);
+    });
   }
 
   /** Cursor in window-logical coordinates. */

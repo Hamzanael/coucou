@@ -45,6 +45,8 @@ pub struct BootInfo {
     hook_path: String,
     /// Set where the island stands in for the desktop's top-bar clock.
     clock: Option<ClockFormat>,
+    /// The page tracks the mouse from its own events instead of the cursor poll.
+    dom_pointer: bool,
 }
 
 #[tauri::command]
@@ -59,6 +61,7 @@ fn boot(app: AppHandle, shared: State<Shared>) -> BootInfo {
         version: env!("CARGO_PKG_VERSION").to_string(),
         hook_path: settings::hook_exe_path().to_string_lossy().to_string(),
         clock: cfg!(target_os = "linux").then(calendar::clock_format),
+        dom_pointer: cfg!(target_os = "linux"),
     }
 }
 
@@ -107,8 +110,8 @@ fn set_collapsed(app: AppHandle, shared: State<Shared>, collapsed: bool) {
 
 /// The front end pushes the island shape; Rust decides click-through from it.
 #[tauri::command]
-fn set_island_rect(shared: State<Shared>, x: f64, y: f64, width: f64, height: f64) {
-    shared.gate.set_rect(island::IslandRect { x, y, w: width, h: height });
+fn set_island_rect(app: AppHandle, shared: State<Shared>, x: f64, y: f64, width: f64, height: f64) {
+    shared.gate.set_island_rect(&app, island::IslandRect { x, y, w: width, h: height });
 }
 
 #[tauri::command]

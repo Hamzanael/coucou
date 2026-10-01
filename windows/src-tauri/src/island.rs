@@ -52,6 +52,14 @@ pub const WINDOW_LABEL: &str = "island";
 /// Wider than the macOS 6 pt because a click must never be swallowed.
 const HIT_MARGIN: f64 = 14.0;
 
+/// Whether the poll thread follows the global cursor to drive click-through and
+/// hover. Not on Linux: under Wayland an X client only sees the pointer while it
+/// is over its own input region, so a polled position goes stale the moment the
+/// pointer leaves — the island would never see it come back, nor leave. There
+/// the input region is the island shape itself (see `apply_input_region`) and
+/// the page reads its own mouse events.
+const POLL_TRACKS_CURSOR: bool = cfg!(not(target_os = "linux"));
+
 #[derive(Serialize, Clone)]
 pub struct CursorPayload {
     pub x: f64,
@@ -103,18 +111,26 @@ impl PollGate {
         }
     }
 
-    pub fn set_rect(&self, rect: IslandRect) {
-        *self.rect.lock().unwrap() = rect;
-    }
-
     /// Collapses or expands the window's input handling: the collapsed window
     /// (wake strip or clock pill) always takes the mouse, and the next poll tick
     /// after expanding re-applies click-through from scratch.
     pub fn set_collapsed(&self, app: &AppHandle, collapsed: bool) {
         let _guard = self.ignore_lock.lock().unwrap();
         self.collapsed.store(collapsed, Ordering::Relaxed);
+        #[cfg(target_os = "linux")]
+        apply_input_region(app, self);
+        #[cfg(not(target_os = "linux"))]
         set_ignore_cursor(app, false);
         self.ignoring.store(false, Ordering::Relaxed);
+    }
+
+    /// The front end pushes the island shape whenever it changes.
+    pub fn set_island_rect(&self, app: &AppHandle, rect: IslandRect) {
+        *self.rect.lock().unwrap() = rect;
+        #[cfg(target_os = "linux")]
+        apply_input_region(app, self);
+        #[cfg(not(target_os = "linux"))]
+        let _ = app;
     }
 
     pub fn set_active(&self, on: bool) {
@@ -349,6 +365,32 @@ pub fn set_activating(win: &WebviewWindow, activating: bool) {
     }
 }
 
+/// Makes the window take the mouse exactly over the island (plus HIT_MARGIN) and
+/// let it through everywhere else — the whole window when collapsed to the wake
+/// strip / clock pill. GNOME Shell routes real pointer input by this region.
+#[cfg(target_os = "linux")]
+fn apply_input_region(app: &AppHandle, gate: &PollGate) {
+    use gtk::cairo::{RectangleInt, Region};
+    use gtk::prelude::*;
+
+    let Some(win) = window(app) else { return };
+    let r = *gate.rect.lock().unwrap();
+    let rect = if gate.collapsed.load(Ordering::Relaxed) || r.w <= 0.0 {
+        RectangleInt::new(0, 0, i32::from(i16::MAX), i32::from(i16::MAX))
+    } else {
+        let x = (r.x - HIT_MARGIN).floor().max(0.0);
+        let w = (r.x + r.w + HIT_MARGIN).ceil() - x;
+        let h = (r.y + r.h + HIT_MARGIN).ceil().max(1.0);
+        RectangleInt::new(x as i32, 0, w as i32, h as i32)
+    };
+    let _ = app.run_on_main_thread(move || {
+        let Ok(gtk_win) = win.gtk_window() else { return };
+        if let Some(gdk_win) = gtk_win.window() {
+            gdk_win.input_shape_combine_region(&Region::create_rectangle(&rect), 0, 0);
+        }
+    });
+}
+
 /// Position, size and scale of the monitor the island lives on. Any change here
 /// means the island has to be placed again.
 fn current_screen_key(app: &AppHandle) -> Option<(i32, i32, u32, u32, u64)> {
@@ -394,6 +436,9 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
                     }
                 }
 
+                if !POLL_TRACKS_CURSOR {
+                    continue;
+                }
                 let Some(win) = window(&app) else { continue };
                 let Ok(origin) = win.outer_position() else { continue };
                 let scale = win.scale_factor().unwrap_or(1.0);
@@ -461,6 +506,7 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
     });
 }
 
+#[cfg(not(target_os = "linux"))]
 pub fn set_ignore_cursor(app: &AppHandle, ignore: bool) {
     if let Some(win) = window(app) {
         let _ = win.set_ignore_cursor_events(ignore);
