@@ -256,6 +256,11 @@ pub fn apply_geometry(app: &AppHandle, pref: &str, collapsed: bool) {
     let x = mp.x + (ms.width as i32 - pw as i32) / 2;
     let y = mp.y;
 
+    // GTK never shrinks a non-resizable window below its natural size, which left
+    // the collapsed clock pill a 240×200 box eating clicks under the top bar. The
+    // window is override-redirect, so no WM offers a resize handle either way.
+    #[cfg(target_os = "linux")]
+    let _ = win.set_resizable(true);
     let _ = win.set_size(PhysicalSize::new(pw, ph));
     let _ = win.set_position(PhysicalPosition::new(x, y));
     // Moving across displays can rescale the window: re-assert the physical size.
