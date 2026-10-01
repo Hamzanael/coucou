@@ -595,9 +595,15 @@ export class Island {
 
   useDomPointer() {
     window.addEventListener("mousemove", (e) => this.onCursor(e.clientX, e.clientY));
+    const left = (how: string) => {
+      if (!this.wasInIsland) return;
+      void Bridge.log(`pointer left the island (${how})`);
+      this.onCursor(-10_000, -10_000);
+    };
     window.addEventListener("mouseout", (e) => {
-      if (e.relatedTarget == null) this.onCursor(-10_000, -10_000);
+      if (e.relatedTarget == null) left("mouseout");
     });
+    document.documentElement.addEventListener("mouseleave", () => left("mouseleave"));
   }
 
   /** Cursor in window-logical coordinates. */
