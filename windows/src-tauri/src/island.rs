@@ -295,8 +295,6 @@ pub fn apply_geometry(app: &AppHandle, pref: &str, collapsed: bool) {
     let ph = (lh * scale).round().max(1.0) as u32;
     let x = mp.x + (ms.width as i32 - pw as i32) / 2;
     let y = mp.y;
-    #[cfg(target_os = "linux")]
-    crate::log::line(format!("geometry {pw}x{ph} at x={x}"));
 
     // GTK never shrinks a non-resizable window below its natural size, which left
     // the collapsed clock pill a 240×200 box eating clicks under the top bar. The
