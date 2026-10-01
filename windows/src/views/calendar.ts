@@ -7,7 +7,6 @@ import { clear, h, svg } from "./dom";
 import { ICONS } from "./icons";
 import type { ViewHost } from "./views";
 
-const DAY_MS = 86_400_000;
 const GRID_DAYS = 42;
 /** Events are re-read when the view comes back after this long. */
 const STALE_MS = 60_000;
