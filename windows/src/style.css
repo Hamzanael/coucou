@@ -1390,7 +1390,7 @@ input[type="range"]::-webkit-slider-thumb {
   border: 0;
   background: transparent;
   color: inherit;
-  font: inherit;
+  font-family: inherit;
   cursor: default;
 }
 
@@ -1447,7 +1447,7 @@ input[type="range"]::-webkit-slider-thumb {
 
 .cal-cell {
   position: relative;
-  height: 25px;
+  height: 24px;
   border-radius: 9px;
   font-size: 11.5px;
   font-variant-numeric: tabular-nums;

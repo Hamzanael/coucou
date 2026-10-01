@@ -233,8 +233,10 @@ class AppState {
   }
 
   defaultView(): IslandViewName {
-    if (this.tasks.length > 0) return "overview";
-    return this.clock ? "calendar" : "empty";
+    // Standing in for the top-bar clock, a click on it means "show me the
+    // calendar" unless something is actually going on.
+    if (this.clock) return this.tasks.some((t) => t.state !== "idle") ? "overview" : "calendar";
+    return this.tasks.length === 0 ? "empty" : "overview";
   }
 }
 
