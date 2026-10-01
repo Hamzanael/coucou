@@ -54,10 +54,11 @@ const HIT_MARGIN: f64 = 14.0;
 
 /// Whether the poll thread follows the global cursor to drive click-through and
 /// hover. Not on Linux: under Wayland an X client only sees the pointer while it
-/// is over its own input region, so a polled position goes stale the moment the
-/// pointer leaves — the island would never see it come back, nor leave. There
-/// the input region is the island shape itself (see `apply_input_region`) and
-/// the page reads its own mouse events.
+/// is over the window, so a polled position goes stale the moment the pointer
+/// leaves — the island would never see it come back, nor leave. And GNOME reads
+/// an override-redirect window's input shape once, so click-through cannot be
+/// toggled either. There the window is sized to the island itself (see
+/// `apply_geometry`) and the page reads its own mouse events.
 const POLL_TRACKS_CURSOR: bool = cfg!(not(target_os = "linux"));
 
 #[derive(Serialize, Clone)]
@@ -117,20 +118,19 @@ impl PollGate {
     pub fn set_collapsed(&self, app: &AppHandle, collapsed: bool) {
         let _guard = self.ignore_lock.lock().unwrap();
         self.collapsed.store(collapsed, Ordering::Relaxed);
-        #[cfg(target_os = "linux")]
-        apply_input_region(app, self);
         #[cfg(not(target_os = "linux"))]
         set_ignore_cursor(app, false);
+        #[cfg(target_os = "linux")]
+        let _ = app;
         self.ignoring.store(false, Ordering::Relaxed);
     }
 
-    /// The front end pushes the island shape whenever it changes.
-    pub fn set_island_rect(&self, app: &AppHandle, rect: IslandRect) {
+    pub fn set_rect(&self, rect: IslandRect) {
         *self.rect.lock().unwrap() = rect;
-        #[cfg(target_os = "linux")]
-        apply_input_region(app, self);
-        #[cfg(not(target_os = "linux"))]
-        let _ = app;
+    }
+
+    fn rect(&self) -> IslandRect {
+        *self.rect.lock().unwrap()
     }
 
     pub fn set_active(&self, on: bool) {
@@ -266,6 +266,21 @@ pub fn screen_info(app: &AppHandle, pref: &str) -> ScreenInfo {
     }
 }
 
+/// Logical window size: the wake strip or the full panel; on Linux, the island
+/// itself as the front end last pushed it (the panel until it has).
+fn window_size(app: &AppHandle, collapsed: bool) -> (f64, f64) {
+    #[cfg(target_os = "linux")]
+    {
+        let rect = app.try_state::<crate::Shared>().map(|s| s.gate.rect()).unwrap_or_default();
+        if rect.w > 0.0 && rect.h > 0.0 {
+            return (rect.w.ceil(), rect.h.ceil());
+        }
+    }
+    #[cfg(not(target_os = "linux"))]
+    let _ = app;
+    if collapsed { (STRIP_W, STRIP_H) } else { (PANEL_W, PANEL_H) }
+}
+
 /// Places and sizes the window. `collapsed` picks the wake strip instead of the panel.
 pub fn apply_geometry(app: &AppHandle, pref: &str, collapsed: bool) {
     let Some(win) = window(app) else { return };
@@ -275,7 +290,7 @@ pub fn apply_geometry(app: &AppHandle, pref: &str, collapsed: bool) {
     let mp = *m.position();
     let ms = *m.size();
 
-    let (lw, lh) = if collapsed { (STRIP_W, STRIP_H) } else { (PANEL_W, PANEL_H) };
+    let (lw, lh) = window_size(app, collapsed);
     let pw = (lw * scale).round().max(1.0) as u32;
     let ph = (lh * scale).round().max(1.0) as u32;
     let x = mp.x + (ms.width as i32 - pw as i32) / 2;
@@ -363,32 +378,6 @@ pub fn set_activating(win: &WebviewWindow, activating: bool) {
     } else {
         seat.ungrab();
     }
-}
-
-/// Makes the window take the mouse exactly over the island (plus HIT_MARGIN) and
-/// let it through everywhere else — the whole window when collapsed to the wake
-/// strip / clock pill. GNOME Shell routes real pointer input by this region.
-#[cfg(target_os = "linux")]
-fn apply_input_region(app: &AppHandle, gate: &PollGate) {
-    use gtk::cairo::{RectangleInt, Region};
-    use gtk::prelude::*;
-
-    let Some(win) = window(app) else { return };
-    let r = *gate.rect.lock().unwrap();
-    let rect = if gate.collapsed.load(Ordering::Relaxed) || r.w <= 0.0 {
-        RectangleInt::new(0, 0, i32::from(i16::MAX), i32::from(i16::MAX))
-    } else {
-        let x = (r.x - HIT_MARGIN).floor().max(0.0);
-        let w = (r.x + r.w + HIT_MARGIN).ceil() - x;
-        let h = (r.y + r.h + HIT_MARGIN).ceil().max(1.0);
-        RectangleInt::new(x as i32, 0, w as i32, h as i32)
-    };
-    let _ = app.run_on_main_thread(move || {
-        let Ok(gtk_win) = win.gtk_window() else { return };
-        if let Some(gdk_win) = gtk_win.window() {
-            gdk_win.input_shape_combine_region(&Region::create_rectangle(&rect), 0, 0);
-        }
-    });
 }
 
 /// Position, size and scale of the monitor the island lives on. Any change here

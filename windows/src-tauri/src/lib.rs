@@ -111,7 +111,13 @@ fn set_collapsed(app: AppHandle, shared: State<Shared>, collapsed: bool) {
 /// The front end pushes the island shape; Rust decides click-through from it.
 #[tauri::command]
 fn set_island_rect(app: AppHandle, shared: State<Shared>, x: f64, y: f64, width: f64, height: f64) {
-    shared.gate.set_island_rect(&app, island::IslandRect { x, y, w: width, h: height });
+    shared.gate.set_rect(island::IslandRect { x, y, w: width, h: height });
+    // On Linux the window is the island: follow its size.
+    if cfg!(target_os = "linux") {
+        let pref = shared.settings.lock().unwrap().screen.clone();
+        let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
+        island::apply_geometry(&app, &pref, collapsed);
+    }
 }
 
 #[tauri::command]

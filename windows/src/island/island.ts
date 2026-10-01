@@ -74,6 +74,13 @@ export class Island {
   private wasInIsland = false;
   /** Last shape handed to Rust for the click-through test. */
   private pushedRect = { x: -1, y: -1, w: -1, h: -1 };
+  /**
+   * Linux: the window is the island, and is resized to whatever is pushed. While
+   * the island animates it gets the envelope of the start and end sizes — one
+   * resize per animation instead of one per frame — then the final size.
+   */
+  private windowIsIsland = false;
+  private envelope = { w: 0, h: 0 };
   private homeCollapseAt: number | null = null;
 
   // Bot hover → love (IslandWindowController.botHoverIn)
@@ -461,6 +468,7 @@ export class Island {
 
   private animateGeometry(shrinking: boolean) {
     const { w, h, r } = this.targetSize();
+    this.envelope = { w: Math.max(w, this.width.value), h: Math.max(h, this.height.value) };
     if (shrinking) {
       this.width.curveTowards(w);
       this.height.curveTowards(h);
@@ -488,7 +496,9 @@ export class Island {
     this.greetingCanvas.style.left = `${(w - EXPANDED_W) / 2}px`;
     this.uploadCanvas.el.style.left = `${(w - EXPANDED_W) / 2}px`;
 
-    const rect = { x: (PANEL_W - w) / 2, y: 0, w, h: hh };
+    const animating = this.width.animating || this.height.animating;
+    const size = this.windowIsIsland && animating ? this.envelope : { w, h: hh };
+    const rect = { x: (this.windowWidth() - size.w) / 2, y: 0, w: size.w, h: size.h };
     const p = this.pushedRect;
     if (Math.abs(p.x - rect.x) > 0.5 || Math.abs(p.w - rect.w) > 0.5 || Math.abs(p.h - rect.h) > 0.5) {
       this.pushedRect = rect;
@@ -500,7 +510,7 @@ export class Island {
   private islandRect(): { x: number; y: number; w: number; h: number } {
     const w = this.width.value;
     const hh = this.height.value;
-    return { x: (PANEL_W - w) / 2, y: 0, w, h: hh };
+    return { x: (this.windowWidth() - w) / 2, y: 0, w, h: hh };
   }
 
   // ── Window collapse (hidden → tiny wake strip, zero polling) ────────────────
@@ -570,6 +580,19 @@ export class Island {
    * window only takes the mouse over the island, so these are exactly the moments
    * the pointer is on it; leaving that region is a leave.
    */
+  /** Logical width of the window the island is centred in. */
+  private windowWidth(): number {
+    return this.windowIsIsland ? window.innerWidth : PANEL_W;
+  }
+
+  /** Linux: the window is sized to the island and the page tracks the mouse. */
+  makeWindowTheIsland() {
+    this.windowIsIsland = true;
+    this.useDomPointer();
+    this.pushedRect = { x: -1, y: -1, w: -1, h: -1 };
+    this.applyGeometry();
+  }
+
   useDomPointer() {
     window.addEventListener("mousemove", (e) => this.onCursor(e.clientX, e.clientY));
     window.addEventListener("mouseout", (e) => {
