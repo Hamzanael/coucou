@@ -2,7 +2,7 @@
 // Mirrors IslandRootView.swift + IslandWindowController.swift.
 
 import { Tracked, Spring, clamp } from "../core/anim";
-import { Bridge, IS_TAURI, onDragDrop } from "../core/bridge";
+import { Bridge, IS_TAURI, onDragDrop, onEvent } from "../core/bridge";
 import {
   EXPANDED_CORNER, EXPANDED_W, NOTCH_W, PANEL_H, PANEL_W,
   ROUNDED_CORNER, VIEW_LAYOUTS, botGlowColor, botGlowOpacity, botPosition, chatPromptHeight,
@@ -604,6 +604,9 @@ export class Island {
       if (e.relatedTarget == null) left("mouseout");
     });
     document.documentElement.addEventListener("mouseleave", () => left("mouseleave"));
+    // WebKitGTK sends neither of the above when the pointer leaves the window:
+    // GTK's leave-notify is forwarded by Rust instead.
+    void onEvent<null>("pointer-left", () => left("window"));
   }
 
   /** Cursor in window-logical coordinates. */

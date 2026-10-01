@@ -273,7 +273,7 @@ fn window_size(app: &AppHandle, collapsed: bool) -> (f64, f64) {
     {
         let rect = app.try_state::<crate::Shared>().map(|s| s.gate.rect()).unwrap_or_default();
         if rect.w > 0.0 && rect.h > 0.0 {
-            return (rect.w.ceil(), rect.h.ceil());
+            return (rect.w.round(), rect.h.round());
         }
     }
     #[cfg(not(target_os = "linux"))]
@@ -363,6 +363,17 @@ pub fn make_non_activating(win: &WebviewWindow) {
     if was_visible {
         gtk_win.show();
     }
+
+    // WebKitGTK fires no DOM mouseout/mouseleave when the pointer leaves the
+    // window, so the page would think it is still hovered and never close.
+    let page = win.clone();
+    gtk_win.add_events(gtk::gdk::EventMask::LEAVE_NOTIFY_MASK);
+    gtk_win.connect_leave_notify_event(move |_, event| {
+        if event.detail() != gtk::gdk::NotifyType::Inferior {
+            let _ = page.emit("pointer-left", ());
+        }
+        gtk::glib::Propagation::Proceed
+    });
 }
 
 /// No WM ever focuses an override-redirect window, so the chat field gets the
