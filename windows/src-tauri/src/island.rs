@@ -35,8 +35,16 @@ use windows::Win32::UI::WindowsAndMessaging::{
 pub const PANEL_W: f64 = 720.0;
 pub const PANEL_H: f64 = 320.0;
 /// Logical size of the invisible strip that wakes the island when it is hidden.
+#[cfg(not(target_os = "linux"))]
 pub const STRIP_W: f64 = 240.0;
+#[cfg(not(target_os = "linux"))]
 pub const STRIP_H: f64 = 6.0;
+/// On Linux the hidden island is the top-bar clock, so the window shrinks to
+/// the clock pill (NOTCH_W × NOTCH_H in layout.ts) instead of a strip.
+#[cfg(target_os = "linux")]
+pub const STRIP_W: f64 = 184.0;
+#[cfg(target_os = "linux")]
+pub const STRIP_H: f64 = 32.0;
 
 pub const WINDOW_LABEL: &str = "island";
 
@@ -291,16 +299,40 @@ pub fn set_activating(win: &WebviewWindow, activating: bool) {
     }
 }
 
-/// GTK: refuse focus on click. `skipTaskbar` in tauri.conf.json already keeps
-/// the island out of the taskbar and the Alt-Tab switcher.
-#[cfg(not(windows))]
+/// Takes the island away from the window manager by making it override-redirect,
+/// the way menus and tooltips are. A managed window gets pushed below GNOME's top
+/// bar, so the island would sit where the cursor poll does not think it is and
+/// swallow no clicks; an override-redirect one stays exactly where it is placed,
+/// is drawn above the top bar, and is never focused, raised or listed by the WM.
+/// The flag only takes effect on map, hence the hide/show around it.
+#[cfg(target_os = "linux")]
 pub fn make_non_activating(win: &WebviewWindow) {
-    let _ = win.set_focusable(false);
+    use gtk::prelude::*;
+    let Ok(gtk_win) = win.gtk_window() else { return };
+    let was_visible = gtk_win.is_visible();
+    gtk_win.hide();
+    gtk_win.realize();
+    if let Some(gdk_win) = gtk_win.window() {
+        gdk_win.set_override_redirect(true);
+    }
+    if was_visible {
+        gtk_win.show();
+    }
 }
 
-#[cfg(not(windows))]
+/// No WM ever focuses an override-redirect window, so the chat field gets the
+/// keyboard through a grab, released as soon as the chat is left.
+#[cfg(target_os = "linux")]
 pub fn set_activating(win: &WebviewWindow, activating: bool) {
-    let _ = win.set_focusable(activating);
+    use gtk::prelude::*;
+    let Ok(gtk_win) = win.gtk_window() else { return };
+    let Some(gdk_win) = gtk_win.window() else { return };
+    let Some(seat) = gdk_win.display().default_seat() else { return };
+    if activating {
+        let _ = seat.grab(&gdk_win, gtk::gdk::SeatCapabilities::KEYBOARD, false, None, None, None);
+    } else {
+        seat.ungrab();
+    }
 }
 
 /// Position, size and scale of the monitor the island lives on. Any change here

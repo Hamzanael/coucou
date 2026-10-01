@@ -10,6 +10,7 @@ import { washRGBA, type IslandViewName, type Wash } from "../core/layout";
 import { createMiniBot, pruneMiniBots } from "../mochi/minibots";
 import { buildPrompt } from "./chat";
 import { buildChoose, buildUpload, buildUploading } from "./upload";
+import { buildCalendar } from "./calendar";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 
 export interface ViewActions {
@@ -33,6 +34,8 @@ export interface ViewHost {
   sync(): void;
   /** Called when the view becomes active, for views with a text field. */
   focus?(): void;
+  /** Called each time the view comes on screen in the open island. */
+  shown?(): void;
   /** Called every frame while the view is on screen. */
   tick?(nowMs: number): void;
 }
@@ -81,6 +84,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
   const tabHome = h("button", { class: "tab", title: "Overview", onclick: () => go("overview") }, svg(ICONS.house, 13));
   const tabChat = h("button", { class: "tab", title: "Ask", onclick: () => go("prompt") }, svg(ICONS.bubble, 13));
   const tabDrop = h("button", { class: "tab", title: "Drop", onclick: () => go("upload") }, svg(ICONS.plus, 13));
+  const tabCalendar = h("button", { class: "tab", title: "Calendar", onclick: () => go("calendar") }, svg(ICONS.calendar, 13));
 
   const gearBtn = h("button", { title: "Settings", onclick: () => go("settings") }, svg(ICONS.gear, 14));
   const soundBtn = h("button", { title: "Mute", onclick: () => actions.toggleSound() }, svg(ICONS.speakerOn, 14));
@@ -93,7 +97,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
   const el = h(
     "div",
     { id: "header" },
-    h("div", { class: "tabs" }, tabHome, tabChat, tabDrop),
+    h("div", { class: "tabs" }, tabHome, tabChat, tabDrop, tabCalendar),
     h("div", { class: "header-actions" }, gearBtn, soundBtn),
   );
 
@@ -104,6 +108,8 @@ export function buildHeader(actions: ViewActions): ViewHost {
       tabHome.classList.toggle("on", v === "overview" || v === "empty");
       tabChat.classList.toggle("on", v === "prompt");
       tabDrop.classList.toggle("on", v === "upload");
+      tabCalendar.classList.toggle("on", v === "calendar");
+      tabCalendar.style.display = State.clock ? "" : "none";
       gearBtn.classList.toggle("on", v === "settings");
       clear(gearBtn);
       gearBtn.append(svg(v === "settings" ? ICONS.gearFill : ICONS.gear, 14));
@@ -501,6 +507,7 @@ export function buildViews(
   map.set("upload", buildUpload());
   map.set("uploading", buildUploading());
   map.set("choose", buildChoose(actions));
+  map.set("calendar", buildCalendar(() => actions.blip()));
   // Not in the Windows v1: sending a file by email, window attach + web result.
   map.set("mail", buildPlaceholder("Sending by email isn't in this version.", ""));
   map.set("searching", buildPlaceholder("Claude is searching…", ""));

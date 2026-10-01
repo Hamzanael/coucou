@@ -26,6 +26,22 @@ export interface BootInfo {
   screen: { x: number; y: number; width: number; height: number; scale: number };
   version: string;
   hookPath: string;
+  /** Present where the island stands in for the desktop's top-bar clock. */
+  clock: ClockFormat | null;
+}
+
+export interface ClockFormat {
+  hour12: boolean;
+  showDate: boolean;
+  showWeekday: boolean;
+}
+
+export interface CalendarEvent {
+  id: string;
+  summary: string;
+  /** Unix seconds. */
+  start: number;
+  end: number;
 }
 
 export const Bridge = {
@@ -94,6 +110,11 @@ export const Bridge = {
   refreshIntegration: (id: string) => call<void>("refresh_integration", { id }),
   /** Opens the configured n8n instance in the browser. */
   openN8n: () => call<void>("open_n8n"),
+
+  // ── Clock ─────────────────────────────────────────────────────────────────
+  /** The desktop's calendar events overlapping [since, until), unix seconds. */
+  calendarEvents: (since: number, until: number) =>
+    call<CalendarEvent[]>("calendar_events", { since, until }),
 
   /** Tray → Pause. Stops the integration pollers, not just the island. */
   setPaused: (paused: boolean) => call<void>("set_paused", { paused }),

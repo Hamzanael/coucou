@@ -21,7 +21,8 @@ export type IslandViewName =
   | "result"
   | "note"
   | "settings"
-  | "greeting";
+  | "greeting"
+  | "calendar";
 
 export type BotStateName =
   | "idle"
@@ -86,6 +87,7 @@ export const VIEW_LAYOUTS: Record<IslandViewName, ViewLayout> = {
   note: { height: 160, botX: 60, botY: null, botDiameter: 50, agentMode: "column" },
   settings: { height: 160, botX: 54, botY: null, botDiameter: 46, agentMode: "none" },
   greeting: { height: 150, botX: 320, botY: 90, botDiameter: 0, agentMode: "none" },
+  calendar: { height: 262, botX: 50, botY: 150, botDiameter: 44, agentMode: "none" },
 };
 
 // The upload views above are only the fallback geometry. Once a file is actually
@@ -101,12 +103,14 @@ export function islandSize(
   mode: IslandMode,
   view: IslandViewName,
   chatCount = 0,
+  clock = false,
 ): { w: number; h: number } {
   switch (mode) {
     case "hidden":
       // No notch to hide inside on a PC: the island retracts to zero height and
-      // slides into the top edge of the screen instead of sitting there as a bar.
-      return { w: NOTCH_W, h: 0 };
+      // slides into the top edge of the screen instead of sitting there as a bar —
+      // unless it stands in for the top-bar clock, which never goes away.
+      return { w: NOTCH_W, h: clock ? NOTCH_H : 0 };
     case "compact":
       return { w: COMPACT_W, h: NOTCH_H };
     case "expanded": {

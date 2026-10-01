@@ -17,6 +17,7 @@ import { createMiniBot, pruneMiniBots, syncMiniBotStates, tickMiniBots } from ".
 import { UploadCanvas } from "../upload/canvas";
 import { USC, UploadSeq } from "../upload/sequence";
 import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
+import { ClockFace } from "../views/clock";
 import { h } from "../views/dom";
 import { IslandStateMachine } from "./fsm";
 
@@ -50,6 +51,7 @@ export class Island {
   private header!: ViewHost;
   private views!: Map<IslandViewName, ViewHost>;
   private uploadCanvas!: UploadCanvas;
+  private clock = new ClockFace();
 
   private width = new Tracked(NOTCH_W);
   private height = new Tracked(0);
@@ -83,6 +85,7 @@ export class Island {
   private confusedRecovery: number | null = null;
   private prevViewBeforeConfused: IslandViewName = "overview";
   private lastSyncedView: IslandViewName | null = null;
+  private lastShownView: IslandViewName | null = null;
 
   /** Drop sequence bookkeeping: last tick played, and whether the ✓ has fired. */
   private uploadTens = 0;
@@ -209,6 +212,7 @@ export class Island {
       this.botCanvas,
       this.miniGrid,
       this.countdown,
+      this.clock.el,
     );
 
     const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -450,7 +454,7 @@ export class Island {
   // ── Geometry ────────────────────────────────────────────────────────────────
 
   private targetSize(): { w: number; h: number; r: number } {
-    const { w, h } = islandSize(State.mode, State.view, State.chatHistory.length);
+    const { w, h } = islandSize(State.mode, State.view, State.chatHistory.length, State.clock != null);
     const r = State.mode === "expanded" ? EXPANDED_CORNER : ROUNDED_CORNER;
     return { w, h, r };
   }
@@ -525,16 +529,21 @@ export class Island {
   // ── Input ───────────────────────────────────────────────────────────────────
 
   private wireInput() {
-    // The wake strip is the only thing the OS can hit while the island is hidden.
-    this.wakeStrip.addEventListener("mouseenter", () => {
+    // The wake strip is the only thing the OS can hit while the island is hidden —
+    // or the clock pill, where the island stands in for the top-bar clock.
+    const wake = () => {
       Sound.resume();
       if (State.mode === "hidden") this.fsm.mouseEntered();
-    });
+    };
+    this.wakeStrip.addEventListener("mouseenter", wake);
+    this.islandEl.addEventListener("mouseenter", wake);
 
     this.islandEl.addEventListener("mousedown", (e) => {
       Sound.resume();
       State.lastActivity = performance.now();
       if (State.mode !== "expanded") {
+        // A click on the clock pill opens the island straight away.
+        if (this.fsm.state === "hidden") this.fsm.mouseEntered();
         this.fsm.click();
         return;
       }
@@ -849,6 +858,16 @@ export class Island {
       }
     }
 
+    const shown = expanded ? State.view : null;
+    if (shown !== this.lastShownView) {
+      this.lastShownView = shown;
+      if (shown) this.views.get(shown)?.shown?.();
+    }
+
+    const showClock = State.clock != null && !expanded;
+    this.clock.el.style.opacity = showClock ? "1" : "0";
+    this.clock.setShort(State.mode === "compact");
+
     // Compact mini grid
     const showGrid = State.mode === "compact";
     this.miniGrid.style.opacity = showGrid ? "1" : "0";
@@ -871,6 +890,10 @@ export class Island {
 
   /** Applies settings coming from Rust at boot. */
   applySettings() {
+    if (State.clock) {
+      this.clock.start();
+      this.animateGeometry(false);
+    }
     Sound.setEnabled(State.settings.soundEnabled);
     Sound.setVolume(State.settings.soundVolume);
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;

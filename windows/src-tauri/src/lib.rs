@@ -1,5 +1,6 @@
 // Coucou for Windows and Linux — app wiring and the commands the island calls.
 
+mod calendar;
 mod claude;
 mod files;
 mod hooks;
@@ -22,6 +23,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_autostart::{ManagerExt, MacosLauncher};
 
+use calendar::{CalendarEvent, ClockFormat};
 use claude::{Chat, ChatContext, ChatReply};
 use files::DroppedFile;
 use hooks::{HookPreview, HookStatus};
@@ -41,6 +43,8 @@ pub struct BootInfo {
     screen: ScreenInfo,
     version: String,
     hook_path: String,
+    /// Set where the island stands in for the desktop's top-bar clock.
+    clock: Option<ClockFormat>,
 }
 
 #[tauri::command]
@@ -54,7 +58,13 @@ fn boot(app: AppHandle, shared: State<Shared>) -> BootInfo {
         screen,
         version: env!("CARGO_PKG_VERSION").to_string(),
         hook_path: settings::hook_exe_path().to_string_lossy().to_string(),
+        clock: cfg!(target_os = "linux").then(calendar::clock_format),
     }
+}
+
+#[tauri::command]
+async fn calendar_events(since: i64, until: i64) -> Vec<CalendarEvent> {
+    calendar::events(since, until).await
 }
 
 #[tauri::command]
@@ -392,6 +402,7 @@ pub fn run() {
         .manage(Chat::default())
         .invoke_handler(tauri::generate_handler![
             boot,
+            calendar_events,
             save_settings,
             set_collapsed,
             set_island_rect,

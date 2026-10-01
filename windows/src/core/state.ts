@@ -2,6 +2,7 @@
 
 import type { BotEmoteName, BotStateName, IslandMode, IslandViewName } from "./layout";
 import type { EyeShape } from "../mochi/engine";
+import type { ClockFormat } from "./bridge";
 
 export type AgentSource = "claudeCode" | "n8n";
 export type PillBadge = "approval" | "finished" | "error";
@@ -127,6 +128,9 @@ class AppState {
   isPinned = false;
   paused = false;
 
+  /** Set when the island stands in for the top-bar clock (Linux). */
+  clock: ClockFormat | null = null;
+
   uploadProgress = 0;
   uploadDuration = 2.4;
   fileDragOver = false;
@@ -229,7 +233,8 @@ class AppState {
   }
 
   defaultView(): IslandViewName {
-    return this.tasks.length === 0 ? "empty" : "overview";
+    if (this.tasks.length > 0) return "overview";
+    return this.clock ? "calendar" : "empty";
   }
 }
 

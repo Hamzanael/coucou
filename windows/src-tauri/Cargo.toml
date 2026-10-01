@@ -40,3 +40,10 @@ windows = { version = "0.61", features = [
 [target.'cfg(unix)'.dependencies]
 keyring = { version = "3", features = ["sync-secret-service", "crypto-rust"] }
 libc = "0.2"
+
+# Override-redirect island window and keyboard grab (same GTK as Tauri), and the
+# GNOME calendar server behind the top-bar clock.
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = "0.18"
+zbus = "5"
+futures-util = "0.3"
