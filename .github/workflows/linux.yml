@@ -58,6 +58,10 @@ jobs:
           echo "tag=$tag conf=$conf package=$pkg cargo=$cargo"
           [ "$tag" = "$conf" ] && [ "$tag" = "$pkg" ] && [ "$tag" = "$cargo" ]
 
+      # tauri-build checks the bundled relay exists, so it has to be built first.
+      - name: Build the hook relay
+        run: cargo build --release -p coucou-hook
+
       - name: Test
         run: cargo test --workspace
 
