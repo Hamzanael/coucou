@@ -80,6 +80,12 @@ export class Island {
    * resize per animation instead of one per frame — then the final size.
    */
   private windowIsIsland = false;
+  /**
+   * Linux: whether the pointer is really over the window, from GTK's own enter /
+   * leave. WebKitGTK never learns the pointer left, so it keeps sending fake
+   * mouse moves at the last position it saw — which must not count as hovering.
+   */
+  private pointerInside = true;
   private envelope = { w: 0, h: 0 };
   private homeCollapseAt: number | null = null;
 
@@ -542,6 +548,7 @@ export class Island {
     // The wake strip is the only thing the OS can hit while the island is hidden —
     // or the clock pill, where the island stands in for the top-bar clock.
     const wake = () => {
+      if (!this.pointerInside) return;
       Sound.resume();
       if (State.mode === "hidden") this.fsm.mouseEntered();
     };
@@ -594,7 +601,9 @@ export class Island {
   }
 
   useDomPointer() {
-    window.addEventListener("mousemove", (e) => this.onCursor(e.clientX, e.clientY));
+    window.addEventListener("mousemove", (e) => {
+      if (this.pointerInside) this.onCursor(e.clientX, e.clientY);
+    });
     const left = (how: string) => {
       if (!this.wasInIsland) return;
       void Bridge.log(`pointer left the island (${how})`);
@@ -605,8 +614,16 @@ export class Island {
     });
     document.documentElement.addEventListener("mouseleave", () => left("mouseleave"));
     // WebKitGTK sends neither of the above when the pointer leaves the window:
-    // GTK's leave-notify is forwarded by Rust instead.
-    void onEvent<null>("pointer-left", () => left("window"));
+    // GTK's enter / leave-notify are forwarded by Rust instead.
+    if (this.windowIsIsland) {
+      void onEvent<null>("pointer-entered", () => {
+        this.pointerInside = true;
+      });
+      void onEvent<null>("pointer-left", () => {
+        left("window");
+        this.pointerInside = false;
+      });
+    }
   }
 
   /** Cursor in window-logical coordinates. */

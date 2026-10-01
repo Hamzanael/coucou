@@ -295,6 +295,8 @@ pub fn apply_geometry(app: &AppHandle, pref: &str, collapsed: bool) {
     let ph = (lh * scale).round().max(1.0) as u32;
     let x = mp.x + (ms.width as i32 - pw as i32) / 2;
     let y = mp.y;
+    #[cfg(target_os = "linux")]
+    crate::log::line(format!("geometry {pw}x{ph} at x={x}"));
 
     // GTK never shrinks a non-resizable window below its natural size, which left
     // the collapsed clock pill a 240×200 box eating clicks under the top bar. The
@@ -365,9 +367,17 @@ pub fn make_non_activating(win: &WebviewWindow) {
     }
 
     // WebKitGTK fires no DOM mouseout/mouseleave when the pointer leaves the
-    // window, so the page would think it is still hovered and never close.
+    // window and keeps faking mouse moves at the last position it saw, so the
+    // page would think it is still hovered and never close. GTK knows better.
+    gtk_win.add_events(gtk::gdk::EventMask::ENTER_NOTIFY_MASK | gtk::gdk::EventMask::LEAVE_NOTIFY_MASK);
     let page = win.clone();
-    gtk_win.add_events(gtk::gdk::EventMask::LEAVE_NOTIFY_MASK);
+    gtk_win.connect_enter_notify_event(move |_, event| {
+        if event.detail() != gtk::gdk::NotifyType::Inferior {
+            let _ = page.emit("pointer-entered", ());
+        }
+        gtk::glib::Propagation::Proceed
+    });
+    let page = win.clone();
     gtk_win.connect_leave_notify_event(move |_, event| {
         if event.detail() != gtk::gdk::NotifyType::Inferior {
             let _ = page.emit("pointer-left", ());
