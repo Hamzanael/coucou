@@ -1,6 +1,7 @@
-// Running Claude Code sessions, from the records Claude Code keeps in
+// Running Claude Code sessions — interactive and background — from
+// `claude agents --json`, falling back to the records Claude Code keeps in
 // ~/.claude/sessions/<pid>.json. Hook events only reach Coucou while a session
-// works; this also lists the quiet ones, and drops sessions whose process ended.
+// works; this also lists the quiet ones, and drops sessions that ended.
 
 use serde::{Deserialize, Serialize};
 
@@ -11,6 +12,9 @@ pub struct LiveSession {
     pub session_id: String,
     pub cwd: String,
     pub busy: bool,
+    /// A background agent blocked on the user.
+    pub waiting: bool,
+    pub background: bool,
     pub updated_at: u64,
 }
 
@@ -31,8 +35,45 @@ pub fn parse(json: &str) -> Option<LiveSession> {
         session_id: r.session_id?,
         cwd: r.cwd.unwrap_or_default(),
         busy: r.status.as_deref() == Some("busy"),
+        waiting: false,
+        background: false,
         updated_at: r.updated_at.unwrap_or(0),
     })
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Agent {
+    session_id: Option<String>,
+    pid: Option<u32>,
+    cwd: Option<String>,
+    kind: Option<String>,
+    status: Option<String>,
+    state: Option<String>,
+    started_at: Option<u64>,
+}
+
+/// `claude agents --json`: interactive sessions carry `status` (busy / idle),
+/// background ones `state` (working / blocked / …).
+pub fn parse_agents(json: &str) -> Option<Vec<LiveSession>> {
+    let agents: Vec<Agent> = serde_json::from_str(json).ok()?;
+    Some(
+        agents
+            .into_iter()
+            .filter_map(|a| {
+                let state = a.state.as_deref().unwrap_or("");
+                Some(LiveSession {
+                    pid: a.pid.unwrap_or(0),
+                    session_id: a.session_id?,
+                    cwd: a.cwd.unwrap_or_default(),
+                    busy: a.status.as_deref() == Some("busy") || matches!(state, "working" | "running"),
+                    waiting: state == "blocked",
+                    background: a.kind.as_deref() == Some("background"),
+                    updated_at: a.started_at.unwrap_or(0),
+                })
+            })
+            .collect(),
+    )
 }
 
 /// A record outlives a crashed session: only trust it while its process runs.
@@ -40,7 +81,33 @@ fn alive(pid: u32) -> bool {
     std::fs::read_to_string(format!("/proc/{pid}/comm")).is_ok_and(|c| c.trim() == "claude")
 }
 
+/// GNOME starts Coucou without the shell's PATH, so ~/.local/bin (where the
+/// Claude Code installer puts `claude`) is checked first.
+fn claude_bin() -> std::path::PathBuf {
+    let local = crate::platform::home().join(".local/bin/claude");
+    if local.is_file() {
+        return local;
+    }
+    crate::find_on_path("claude").unwrap_or_else(|| "claude".into())
+}
+
+fn from_cli() -> Option<Vec<LiveSession>> {
+    let out = std::process::Command::new(claude_bin()).args(["agents", "--json"]).output().ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    parse_agents(&String::from_utf8_lossy(&out.stdout))
+}
+
 pub fn running() -> Vec<LiveSession> {
+    if let Some(mut list) = from_cli() {
+        list.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+        return list;
+    }
+    from_records()
+}
+
+fn from_records() -> Vec<LiveSession> {
     let dir = crate::platform::home().join(".claude").join("sessions");
     let Ok(entries) = std::fs::read_dir(dir) else { return Vec::new() };
     let mut out: Vec<LiveSession> = entries
@@ -59,7 +126,8 @@ pub fn start(app: tauri::AppHandle) {
     use tauri::Emitter;
     tauri::async_runtime::spawn(async move {
         let mut last: Option<Vec<LiveSession>> = None;
-        let mut ticker = tokio::time::interval(std::time::Duration::from_secs(5));
+        // Each poll starts the Claude CLI, so not too often.
+        let mut ticker = tokio::time::interval(std::time::Duration::from_secs(20));
         loop {
             ticker.tick().await;
             let now = tauri::async_runtime::spawn_blocking(running).await.unwrap_or_default();
@@ -85,6 +153,21 @@ mod tests {
         assert_eq!(s.busy, false);
         assert_eq!(s.updated_at, 1791106970612);
         assert_eq!(s.pid, 61134);
+    }
+
+    #[test]
+    fn parses_claude_agents_json_including_background_agents() {
+        let json = r#"[
+          {"id":"4047a5f6","cwd":"/p/middleware","kind":"background","sessionId":"4047a5f6-e","name":"modee","state":"blocked","startedAt":5},
+          {"cwd":"/p/analytickBE","kind":"interactive","sessionId":"efa7","name":"be","status":"busy","pid":61134,"startedAt":9},
+          {"cwd":"/p/x","kind":"interactive","name":"no-id"}
+        ]"#;
+        let list = parse_agents(json).unwrap();
+        assert_eq!(list.len(), 2);
+        assert!(list[0].background && list[0].waiting && !list[0].busy);
+        assert!(!list[1].background && list[1].busy && !list[1].waiting);
+        assert_eq!(list[1].pid, 61134);
+        assert!(parse_agents("garbage").is_none());
     }
 
     #[test]

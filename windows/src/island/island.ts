@@ -18,6 +18,8 @@ import { UploadCanvas } from "../upload/canvas";
 import { USC, UploadSeq } from "../upload/sequence";
 import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
 import { ClockFace } from "../views/clock";
+import { crew, liveSessions } from "../views/sessions";
+import { nextTab, sessionAgent } from "../core/crew";
 import { h } from "../views/dom";
 import { IslandStateMachine } from "./fsm";
 
@@ -128,6 +130,11 @@ export class Island {
       setView: (v) => this.setView(v),
       collapse: () => this.collapse(),
       close: () => this.close(),
+      focusSession: (id) => {
+        State.focusSessionId = id;
+        State.setFocus("integration_claude");
+        Sound.play("blip");
+      },
       setFocus: (id) => {
         State.setFocus(id);
         Sound.play("blip");
@@ -592,8 +599,9 @@ export class Island {
     });
 
     window.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && State.mode === "expanded" && !State.isPinned) this.close();
       State.lastActivity = performance.now();
+      if (e.key === "Escape" && State.mode === "expanded" && !State.isPinned) this.close();
+      else if (State.mode === "expanded") this.navigate(e);
     });
 
     void onDragDrop((e) => this.onDragDrop(e));
@@ -608,6 +616,57 @@ export class Island {
    * window only takes the mouse over the island, so these are exactly the moments
    * the pointer is on it; leaving that region is a leave.
    */
+  /** The header tabs in order, as the keyboard walks them. */
+  private tabs(): IslandViewName[] {
+    const base: IslandViewName[] = ["overview", "prompt", "upload"];
+    return State.clock ? [...base, "calendar", "worktrees", "health"] : base;
+  }
+
+  /**
+   * ← / → and 1–6 switch tabs, ↑ / ↓ walk the current view's rows, Space ticks a
+   * row's checkbox; Enter is the focused button's own. The chat field keeps
+   * its arrows and digits.
+   */
+  private navigate(e: KeyboardEvent) {
+    const target = e.target as HTMLElement | null;
+    if (target?.tagName === "INPUT" && (target as HTMLInputElement).type !== "checkbox") return;
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+    const tabs = this.tabs();
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+      e.preventDefault();
+      this.setView(nextTab(tabs, State.view, e.key === "ArrowRight" ? 1 : -1));
+      Sound.play("blip");
+    } else if (/^[1-9]$/.test(e.key) && tabs[Number(e.key) - 1]) {
+      e.preventDefault();
+      this.setView(tabs[Number(e.key) - 1]);
+      Sound.play("blip");
+    } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      const view = this.views.get(State.view)?.el;
+      const rows = view ? [...view.querySelectorAll<HTMLElement>("[data-nav], .cal-cell")] : [];
+      if (rows.length === 0) return;
+      e.preventDefault();
+      const at = rows.indexOf(document.activeElement as HTMLElement);
+      const next = at < 0 ? 0 : Math.max(0, Math.min(rows.length - 1, at + (e.key === "ArrowDown" ? 1 : -1)));
+      rows[next].focus();
+    } else if ((e.key === " " || e.key === "Enter") && target?.matches("label[data-nav]")) {
+      e.preventDefault();
+      target.querySelector<HTMLInputElement>("input[type=checkbox]")?.click();
+    } else if (e.key === "Enter" && target?.matches("div[data-nav]")) {
+      e.preventDefault();
+      target.click();
+    }
+  }
+
+  /** Global shortcut: open focused on the default view, or close if open. */
+  toggleFromShortcut() {
+    if (State.mode === "expanded") {
+      this.close();
+      return;
+    }
+    this.openedByClick = true;
+    this.fsm.forceHome();
+  }
+
   /** Logical width of the window the island is centred in. */
   private windowWidth(): number {
     return this.windowIsIsland ? window.innerWidth : PANEL_W;
@@ -961,7 +1020,8 @@ export class Island {
     const showGrid = State.mode === "compact";
     this.miniGrid.style.opacity = showGrid ? "1" : "0";
     if (showGrid) {
-      const others = State.otherTasks.slice(0, 4);
+      // Sessions first, so the compact island shows who is working.
+      const others = crew(liveSessions()).slice(0, 4);
       const key = others.map((t) => t.id).join("|");
       if (this.miniGrid.dataset.key !== key) {
         this.miniGrid.dataset.key = key;
@@ -973,7 +1033,7 @@ export class Island {
       }
     }
 
-    syncMiniBotStates(State.tasks);
+    syncMiniBotStates([...State.tasks, ...liveSessions().map(sessionAgent)]);
     this.engine.setState(State.effectiveState);
   }
 

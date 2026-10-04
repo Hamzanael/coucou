@@ -207,6 +207,20 @@ fn start_worktree_auto_clean(app: AppHandle) {
 }
 
 #[tauri::command]
+async fn cleanup_scan() -> Result<Vec<cleanup::Item>, String> {
+    tauri::async_runtime::spawn_blocking(cleanup::scan).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn cleanup_run(id: String) -> Result<String, String> {
+    let result = tauri::async_runtime::spawn_blocking(move || cleanup::run(&id))
+        .await
+        .map_err(|e| e.to_string())?;
+    log::line(format!("free-up: {result:?}"));
+    result
+}
+
+#[tauri::command]
 async fn worktrees_scan(shared: State<'_, Shared>) -> Result<Vec<worktrees::Stale>, String> {
     let (roots, days) = {
         let s = shared.settings.lock().unwrap();
@@ -474,8 +488,17 @@ pub fn run() {
     let gate = Arc::new(PollGate::new());
 
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
-            let _ = app.emit_to(island::WINDOW_LABEL, "tray", "open".to_string());
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            // `coucou --toggle "$DESKTOP_STARTUP_ID"` is the Super+C shortcut.
+            if argv.iter().any(|a| a == "--toggle") {
+                #[cfg(target_os = "linux")]
+                if let Some(time) = argv.iter().find_map(|a| island::startup_time(a)) {
+                    island::note_user_time(time);
+                }
+                let _ = app.emit_to(island::WINDOW_LABEL, "shortcut", ());
+            } else {
+                let _ = app.emit_to(island::WINDOW_LABEL, "tray", "open".to_string());
+            }
         }))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
         .manage(Shared {
@@ -498,6 +521,8 @@ pub fn run() {
             open_in_ide,
             worktrees_scan,
             worktrees_remove,
+            cleanup_scan,
+            cleanup_run,
             quit_app,
             hooks_status,
             hooks_preview,

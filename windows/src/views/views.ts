@@ -13,7 +13,8 @@ import { buildChoose, buildUpload, buildUploading } from "./upload";
 import { buildCalendar } from "./calendar";
 import { buildWorktrees } from "./worktrees";
 import { buildHealth } from "./health";
-import { liveSessions, renderSessions } from "./sessions";
+import { crew, isSessionAgent, liveSessions, renderSessionDetail, selectedSession } from "./sessions";
+import { SESSION_PREFIX } from "../core/crew";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 
 export interface ViewActions {
@@ -21,6 +22,8 @@ export interface ViewActions {
   collapse(): void;
   /** Back to the clock pill (or compact without a clock) right away. */
   close(): void;
+  /** Show this Claude Code session in the overview's left card. */
+  focusSession(id: string): void;
   setFocus(id: string): void;
   openTerminal(): void;
   /** The ↗ button: opens whatever the focused pill points at. */
@@ -196,13 +199,12 @@ function buildOverview(actions: ViewActions): ViewHost {
         task?.id === "integration_claude" && (task.state !== "idle" || task.steps.length > 0);
 
       const sessions = liveSessions();
-      if (task?.id === "integration_claude" && sessions.length > 0) {
-        const key = sessions
-          .map((s) => `${s.id}${s.state}${s.step}${Math.floor(s.updatedAt / 60_000)}`)
-          .join("|");
+      const shown = task?.id === "integration_claude" ? selectedSession(sessions) : null;
+      if (shown) {
+        const key = `${shown.id}${shown.state}${shown.steps.join("|")}${Math.floor(shown.updatedAt / 60_000)}`;
         if (mode !== "card" || cardKey !== key) {
           clear(leftBody);
-          leftBody.append(renderSessions(sessions));
+          leftBody.append(renderSessionDetail(shown));
           mode = "card";
           cardKey = key;
         }
@@ -243,12 +245,18 @@ function buildOverview(actions: ViewActions): ViewHost {
 
       jump.style.display = detailOpen ? "none" : "";
 
-      const others = State.otherTasks.slice(0, 4);
-      const pillKey = others.map((t) => `${t.id}:${t.pillBadge ?? ""}:${t.color}`).join("|");
+      // The crew: every Claude Code session as an avatar, then the integrations.
+      const members = crew(sessions);
+      const selectedId = shown ? `${SESSION_PREFIX}${shown.id}` : "";
+      const pillKey = members.map((t) => `${t.id}:${t.pillBadge ?? ""}:${t.color}`).join("|") + `#${selectedId}`;
       if (pillKey !== pillIds) {
         pillIds = pillKey;
         clear(pills);
-        for (const t of others) pills.append(buildPill(t, actions));
+        for (const t of members) {
+          const pill = buildPill(t, actions);
+          if (t.id === selectedId) pill.classList.add("selected");
+          pills.append(pill);
+        }
         pruneMiniBots();
       }
     },
@@ -262,8 +270,15 @@ function buildPill(task: AgentTask, actions: ViewActions): HTMLElement {
     "div",
     {
       class: "pill",
-      // The System pill has no card of its own: it opens the Health view.
-      onclick: () => (task.id === "integration_system" ? actions.setView("health") : actions.setFocus(task.id)),
+      "data-nav": true,
+      tabindex: "0",
+      title: isSessionAgent(task) ? task.steps[task.steps.length - 1] ?? task.name : task.name,
+      onclick: () => {
+        // A session avatar fills the left card; the System pill opens Health.
+        if (isSessionAgent(task)) actions.focusSession(task.id.slice(SESSION_PREFIX.length));
+        else if (task.id === "integration_system") actions.setView("health");
+        else actions.setFocus(task.id);
+      },
     },
     canvas,
     h("span", { class: "lbl", text: label }),
@@ -536,7 +551,7 @@ export function buildViews(
   map.set("choose", buildChoose(actions));
   map.set("calendar", buildCalendar(() => actions.blip()));
   map.set("worktrees", buildWorktrees(() => actions.blip()));
-  map.set("health", buildHealth());
+  map.set("health", buildHealth(() => actions.blip()));
   // Not in the Windows v1: sending a file by email, window attach + web result.
   map.set("mail", buildPlaceholder("Sending by email isn't in this version.", ""));
   map.set("searching", buildPlaceholder("Claude is searching…", ""));

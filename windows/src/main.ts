@@ -54,6 +54,9 @@ async function main() {
 
   await onEvent<null>("screen-changed", () => void Bridge.reposition());
 
+  // Super+C (a GNOME custom shortcut running `coucou --toggle`).
+  await onEvent<null>("shortcut", () => island.toggleFromShortcut());
+
   await onEvent<number>("worktrees-cleaned", (count) => {
     const days = State.settings.worktreeAutoDays;
     State.noteMessage = `Removed ${count} stale worktree${count === 1 ? "" : "s"} untouched for ${days}+ days`;

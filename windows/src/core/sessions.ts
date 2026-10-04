@@ -21,6 +21,8 @@ export interface Session {
   cwd: string;
   state: SessionState;
   step: string;
+  /** Recent steps, oldest first, for the session's detail card. */
+  steps: string[];
   updatedAt: number;
   /** Known to be running (from Claude Code's own records): exempt from the TTL. */
   live?: boolean;
@@ -31,10 +33,14 @@ export interface LiveSession {
   sessionId: string;
   cwd: string;
   busy: boolean;
+  /** A background agent blocked on the user. */
+  waiting?: boolean;
+  background?: boolean;
   updatedAt: number;
 }
 
 export const SESSION_TTL_MS = 30 * 60_000;
+const MAX_STEPS = 8;
 
 const TOOL_LABELS: Record<string, string> = {
   Bash: "Run", PowerShell: "Run", Read: "Read", Write: "Write", Edit: "Edit", MultiEdit: "Edit",
@@ -74,8 +80,9 @@ export class SessionStore {
     }
     const cwd = p.cwd ?? "";
     const s: Session = this.sessions.get(id) ?? {
-      id, cwd, project: lastPathComponent(cwd) || "Session", state: "thinking", step: "", updatedAt: now,
+      id, cwd, project: lastPathComponent(cwd) || "Session", state: "thinking", step: "", steps: [], updatedAt: now,
     };
+    const before = s.step;
     s.updatedAt = now;
     if (cwd && !s.cwd) {
       s.cwd = cwd;
@@ -113,6 +120,10 @@ export class SessionStore {
         s.state = "error";
         break;
     }
+    if (s.step && s.step !== before) {
+      s.steps.push(s.step);
+      if (s.steps.length > MAX_STEPS) s.steps.shift();
+    }
     this.sessions.set(id, s);
     return s;
   }
@@ -129,12 +140,13 @@ export class SessionStore {
       if (!s) {
         this.sessions.set(l.sessionId, {
           id: l.sessionId, cwd: l.cwd, project: lastPathComponent(l.cwd) || "Session",
-          state: l.busy ? "working" : "idle", step: "", updatedAt: Math.min(l.updatedAt, now), live: true,
+          state: l.waiting ? "question" : l.busy ? "working" : "idle", step: l.waiting ? "waiting for you" : "", steps: [], updatedAt: Math.min(l.updatedAt, now), live: true,
         });
         continue;
       }
       s.live = true;
-      if (!l.busy && (s.state === "working" || s.state === "thinking")) s.state = "idle";
+      if (l.waiting && s.state !== "approval") s.state = "question";
+      else if (!l.busy && (s.state === "working" || s.state === "thinking")) s.state = "idle";
       if (l.busy && s.state === "idle") s.state = "working";
       s.updatedAt = Math.max(s.updatedAt, Math.min(l.updatedAt, now));
     }

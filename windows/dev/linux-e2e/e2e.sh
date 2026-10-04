@@ -40,6 +40,12 @@ for c in $(seq 1 "$CYCLES"); do
   sleep 0.6
   python3 "$S/vmouse.py" click >/dev/null
   sleep 1.5
+  # Never click a tab position unless the popup is really there: anything else
+  # under that point is one of the user's windows.
+  if [ "$(top_y)" -lt 30 ] || ! near "$(geo | cut -dx -f1)x0" 640x0; then
+    ko "click did not open the popup ($(geo) y=$(top_y))"; continue
+  fi
+  ok "click opens the popup ($(geo))"
   # A live Claude session makes the click open the overview; go to the calendar tab.
   python3 "$S/vmouse.py" moveclick 1134 56 >/dev/null
   sleep 1.5

@@ -50,6 +50,17 @@ export interface HealthReport {
   worst: "ok" | "warn" | "bad";
 }
 
+export interface CleanupItem {
+  id: string;
+  label: string;
+  note: string;
+  sizeBytes: number | null;
+  /** Root-only items: the command for the user to run. */
+  command: string | null;
+  available: boolean;
+  detail: string | null;
+}
+
 export interface StaleWorktree {
   repo: string;
   path: string;
@@ -147,6 +158,11 @@ export const Bridge = {
   /** The desktop's calendar events overlapping [since, until), unix seconds. */
   calendarEvents: (since: number, until: number) =>
     call<CalendarEvent[]>("calendar_events", { since, until }),
+
+  // ── Free up space ─────────────────────────────────────────────────────────
+  cleanupScan: () => call<CleanupItem[]>("cleanup_scan"),
+  /** Runs one named action from the fixed list; resolves to a summary. */
+  cleanupRun: (id: string) => callOrThrow<string>("cleanup_run", { id }),
 
   // ── Worktrees ─────────────────────────────────────────────────────────────
   worktreesScan: () => call<StaleWorktree[]>("worktrees_scan"),

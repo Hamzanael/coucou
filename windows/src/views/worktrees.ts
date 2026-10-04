@@ -52,7 +52,7 @@ export function buildWorktrees(blip: () => void): ViewHost {
       list.append(
         h(
           "label",
-          { class: "wt-row", title: w.path },
+          { class: "wt-row", title: w.path, "data-nav": true, tabindex: "0" },
           box,
           h("b", { text: base(w.repo) }),
           h("span", { text: w.branch ?? base(w.path) }),

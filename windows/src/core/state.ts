@@ -146,6 +146,8 @@ class AppState {
 
   /** One entry per live Claude Code session. */
   sessions = new SessionStore();
+  /** The session picked in the crew; null shows the most recent one. */
+  focusSessionId: string | null = null;
 
   /** Set when the island stands in for the top-bar clock (Linux). */
   clock: ClockFormat | null = null;

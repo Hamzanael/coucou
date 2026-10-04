@@ -419,6 +419,18 @@ fn record_press_times(widget: &gtk::Widget) {
     }
 }
 
+/// The keyboard shortcut is a user action too: its launch carries the event time
+/// in the startup id (`…_TIME<ms>`), which lets the popup take focus.
+pub fn startup_time(startup_id: &str) -> Option<u32> {
+    let digits: String = startup_id.rsplit("_TIME").next()?.chars().take_while(|c| c.is_ascii_digit()).collect();
+    if startup_id.contains("_TIME") { digits.parse().ok() } else { None }
+}
+
+#[cfg(target_os = "linux")]
+pub fn note_user_time(time: u32) {
+    LAST_PRESS.store(time, Ordering::Relaxed);
+}
+
 /// Bar mode: override-redirect over the top bar, never focused. Popup mode: a
 /// managed, undecorated, keep-above window GNOME places under the top bar and
 /// can focus — the only way to type into it, see Esc, or learn of a click
@@ -575,5 +587,18 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
 pub fn set_ignore_cursor(app: &AppHandle, ignore: bool) {
     if let Some(win) = window(app) {
         let _ = win.set_ignore_cursor_events(ignore);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_the_event_time_from_a_startup_id() {
+        assert_eq!(startup_time("gnome-shell/Coucou/2755873-0-hamza_TIME1234567"), Some(1234567));
+        assert_eq!(startup_time("_TIME42"), Some(42));
+        assert_eq!(startup_time("no-time-here"), None);
+        assert_eq!(startup_time(""), None);
     }
 }
