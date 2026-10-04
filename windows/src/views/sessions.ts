@@ -62,13 +62,44 @@ export function renderSessionDetail(s: Session): HTMLElement {
       h("span", { class: "session-state", text: `${s.name ? `${s.project} · ` : ""}${STATE_LABEL[s.state]} · ${timeAgo(s.updatedAt)}` }),
     ),
     steps,
+    sessionButtons(s, color),
+  );
+}
+
+/** Terminal (the Ghostty tab running it) and IntelliJ (its folder). */
+export function sessionButtons(s: Session, color: string): HTMLElement {
+  const row = h("div", { class: "session-buttons" });
+  if (s.pid) {
+    row.append(
+      h("button", {
+        class: "link-btn",
+        "data-nav": true,
+        style: `color:${color}`,
+        text: "Terminal",
+        title: "Go to the terminal running this session",
+        onclick: () => void goToTerminal(s),
+      }),
+    );
+  }
+  row.append(
     h("button", {
-      class: "link-btn session-open",
+      class: "link-btn",
       "data-nav": true,
-      style: `color:${color}`,
-      text: "Open in IntelliJ",
+      style: `color:${color}b3`,
+      text: "IntelliJ",
       title: s.cwd,
       onclick: () => void Bridge.openInIde(s.cwd || null),
     }),
   );
+  return row;
+}
+
+export async function goToTerminal(s: Session) {
+  if (!s.pid) return;
+  try {
+    await Bridge.focusTerminal(s.pid);
+  } catch (err) {
+    State.noteMessage = String(err).replace(/^Error:\s*/, "");
+    void Bridge.log(`terminal: ${State.noteMessage}`);
+  }
 }

@@ -178,6 +178,9 @@ export const Bridge = {
   calendarEvents: (since: number, until: number) =>
     call<CalendarEvent[]>("calendar_events", { since, until }),
 
+  /** Brings the Ghostty tab running this Claude Code process to the front. */
+  focusTerminal: (pid: number) => callOrThrow<string>("focus_terminal", { pid }),
+
   /** Ghostty in `dir` running `claude --teleport` (with a copied session link). */
   teleport: (dir: string, clipboard: string | null) => callOrThrow<string>("teleport", { dir, clipboard }),
 

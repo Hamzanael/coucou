@@ -212,6 +212,17 @@ fn start_worktree_auto_clean(app: AppHandle) {
     });
 }
 
+/// The Ghostty tab a Claude Code session runs in, brought to the front.
+#[tauri::command]
+async fn focus_terminal(pid: u32) -> Result<String, String> {
+    #[cfg(target_os = "linux")]
+    let result = terminal::focus(pid).await;
+    #[cfg(not(target_os = "linux"))]
+    let result: Result<String, String> = Err(format!("Not supported here (pid {pid})"));
+    log::line(format!("focus terminal of {pid}: {result:?}"));
+    result
+}
+
 /// "Pull a cloud session" into `dir` (a repo folder the island offered).
 #[tauri::command]
 fn teleport(dir: String, clipboard: Option<String>) -> Result<String, String> {
@@ -538,6 +549,7 @@ pub fn run() {
             cleanup_scan,
             cleanup_run,
             teleport,
+            focus_terminal,
             quit_app,
             hooks_status,
             hooks_preview,

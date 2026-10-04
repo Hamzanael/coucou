@@ -1954,3 +1954,9 @@ input[type="range"]::-webkit-slider-thumb {
 .cloud-pill .lbl {
   margin-left: 0;
 }
+
+.session-buttons {
+  display: flex;
+  gap: 14px;
+  font-size: 11px;
+}

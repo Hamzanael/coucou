@@ -2,7 +2,6 @@
 // pipelines, health, calendar and worktrees — in a large window under the top
 // bar. Panels are the same builders as the tabs, in their own instances.
 
-import { Bridge } from "../core/bridge";
 import { sessionAgent } from "../core/crew";
 import type { Session } from "../core/sessions";
 import { createMiniBot, pruneMiniBots } from "../mochi/minibots";
@@ -11,7 +10,7 @@ import { h, clear } from "./dom";
 import { buildHealth } from "./health";
 import { timeAgo } from "./integrations";
 import { buildPipelines } from "./pipelines";
-import { liveSessions } from "./sessions";
+import { liveSessions, sessionButtons } from "./sessions";
 import { renderTeleport } from "./teleport";
 import type { ViewHost } from "./views";
 import { buildWorktrees } from "./worktrees";
@@ -30,14 +29,7 @@ function sessionCard(s: Session): HTMLElement {
       h("div", { class: "dash-session-head" }, h("b", { text: s.name || s.project }),
         h("span", { text: `${s.name ? `${s.project} · ` : ""}${s.state} · ${timeAgo(s.updatedAt)}` })),
       steps,
-      h("button", {
-        class: "link-btn",
-        "data-nav": true,
-        style: `color:${agent.color}`,
-        text: "Open in IntelliJ",
-        title: s.cwd,
-        onclick: () => void Bridge.openInIde(s.cwd || null),
-      }),
+      sessionButtons(s, agent.color),
     ),
   );
 }

@@ -18,7 +18,7 @@ import { UploadCanvas } from "../upload/canvas";
 import { USC, UploadSeq } from "../upload/sequence";
 import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
 import { ClockFace } from "../views/clock";
-import { crew, liveSessions } from "../views/sessions";
+import { crew, goToTerminal, liveSessions } from "../views/sessions";
 import { nextTab, sessionAgent } from "../core/crew";
 import { h } from "../views/dom";
 import { IslandStateMachine } from "./fsm";
@@ -134,6 +134,9 @@ export class Island {
         State.focusSessionId = id;
         State.setFocus("integration_claude");
         Sound.play("blip");
+        // A session's avatar also takes you to the terminal it runs in.
+        const session = State.sessions.list(Date.now()).find((s) => s.id === id);
+        if (session?.pid) void goToTerminal(session);
       },
       toggleDashboard: () => this.toggleDashboard(),
       setFocus: (id) => {
