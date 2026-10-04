@@ -497,6 +497,8 @@ pub fn run() {
             log::line(format!("--- Coucou {} started ---", env!("CARGO_PKG_VERSION")));
             hooks::ensure_hook_exe(&handle);
             pipe::start(handle.clone());
+            #[cfg(target_os = "linux")]
+            health::start(handle.clone());
             integrations::start(handle.clone());
             Ok(())
         })

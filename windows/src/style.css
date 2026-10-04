@@ -1658,3 +1658,27 @@ input[type="range"]::-webkit-slider-thumb {
   gap: 8px;
   justify-content: flex-end;
 }
+
+/* ── Health ─────────────────────────────────────────────────────────────── */
+
+.health {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px 16px 12px 96px;
+}
+
+.health-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12px;
+  padding: 5px 9px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.health-row span {
+  margin-left: auto;
+  color: var(--dim);
+}

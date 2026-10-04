@@ -2,7 +2,7 @@
 // pollers: a genuinely new item flips the pill to finished/error, badges it when
 // the pill isn't focused, plays a sound, and clears itself after 60 s.
 
-import { onEvent, Bridge, type IntegrationUpdate } from "../core/bridge";
+import { onEvent, Bridge, type HealthReport, type IntegrationUpdate } from "../core/bridge";
 import { Sound } from "../core/sound";
 import { State } from "../core/state";
 import type { Island } from "./island";
@@ -20,8 +20,26 @@ const KEY_FOR: Record<string, string> = {
 
 const clearTimers = new Map<string, number>();
 
+const HEALTH_COLOR = { ok: "#22C55E", warn: "#F5A524", bad: "#F4505E" } as const;
+
 export function registerIntegrationHandlers(island: Island) {
   void onEvent<IntegrationUpdate>("integration", (update) => handle(island, update));
+  void onEvent<HealthReport>("health", (report) => {
+    const was = State.health?.worst ?? "ok";
+    State.health = report;
+    const task = State.tasks.find((t) => t.id === "integration_system");
+    if (task) {
+      task.color = HEALTH_COLOR[report.worst];
+      task.state = report.worst === "bad" ? "error" : "idle";
+      // Once per transition into red, never on every sample.
+      if (report.worst === "bad" && was !== "bad") {
+        if (State.focusId !== task.id) task.pillBadge = "error";
+        Sound.play("error");
+        island.reveal();
+      }
+    }
+    State.notify();
+  });
   void refreshConfigured();
 }
 

@@ -12,6 +12,7 @@ import { buildPrompt } from "./chat";
 import { buildChoose, buildUpload, buildUploading } from "./upload";
 import { buildCalendar } from "./calendar";
 import { buildWorktrees } from "./worktrees";
+import { buildHealth } from "./health";
 import { liveSessions, renderSessions } from "./sessions";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 
@@ -90,6 +91,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
   const tabDrop = h("button", { class: "tab", title: "Drop", onclick: () => go("upload") }, svg(ICONS.plus, 13));
   const tabCalendar = h("button", { class: "tab", title: "Calendar", onclick: () => go("calendar") }, svg(ICONS.calendar, 13));
   const tabWorktrees = h("button", { class: "tab", title: "Worktrees", onclick: () => go("worktrees") }, svg(ICONS.branch, 13));
+  const tabHealth = h("button", { class: "tab", title: "Health", onclick: () => go("health") }, svg(ICONS.pulse, 13));
 
   const gearBtn = h("button", { title: "Settings", onclick: () => go("settings") }, svg(ICONS.gear, 14));
   const soundBtn = h("button", { title: "Mute", onclick: () => actions.toggleSound() }, svg(ICONS.speakerOn, 14));
@@ -103,7 +105,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
   const el = h(
     "div",
     { id: "header" },
-    h("div", { class: "tabs" }, tabHome, tabChat, tabDrop, tabCalendar, tabWorktrees),
+    h("div", { class: "tabs" }, tabHome, tabChat, tabDrop, tabCalendar, tabWorktrees, tabHealth),
     h("div", { class: "header-actions" }, gearBtn, soundBtn, closeBtn),
   );
 
@@ -118,6 +120,8 @@ export function buildHeader(actions: ViewActions): ViewHost {
       tabCalendar.style.display = State.clock ? "" : "none";
       tabWorktrees.classList.toggle("on", v === "worktrees");
       tabWorktrees.style.display = State.clock ? "" : "none";
+      tabHealth.classList.toggle("on", v === "health");
+      tabHealth.style.display = State.clock ? "" : "none";
       gearBtn.classList.toggle("on", v === "settings");
       clear(gearBtn);
       gearBtn.append(svg(v === "settings" ? ICONS.gearFill : ICONS.gear, 14));
@@ -240,7 +244,7 @@ function buildOverview(actions: ViewActions): ViewHost {
       jump.style.display = detailOpen ? "none" : "";
 
       const others = State.otherTasks.slice(0, 4);
-      const pillKey = others.map((t) => `${t.id}:${t.pillBadge ?? ""}`).join("|");
+      const pillKey = others.map((t) => `${t.id}:${t.pillBadge ?? ""}:${t.color}`).join("|");
       if (pillKey !== pillIds) {
         pillIds = pillKey;
         clear(pills);
@@ -256,7 +260,11 @@ function buildPill(task: AgentTask, actions: ViewActions): HTMLElement {
   const canvas = createMiniBot(task, 24);
   const pill = h(
     "div",
-    { class: "pill", onclick: () => actions.setFocus(task.id) },
+    {
+      class: "pill",
+      // The System pill has no card of its own: it opens the Health view.
+      onclick: () => (task.id === "integration_system" ? actions.setView("health") : actions.setFocus(task.id)),
+    },
     canvas,
     h("span", { class: "lbl", text: label }),
   );
@@ -528,6 +536,7 @@ export function buildViews(
   map.set("choose", buildChoose(actions));
   map.set("calendar", buildCalendar(() => actions.blip()));
   map.set("worktrees", buildWorktrees(() => actions.blip()));
+  map.set("health", buildHealth());
   // Not in the Windows v1: sending a file by email, window attach + web result.
   map.set("mail", buildPlaceholder("Sending by email isn't in this version.", ""));
   map.set("searching", buildPlaceholder("Claude is searching…", ""));

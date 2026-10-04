@@ -38,6 +38,18 @@ export interface ClockFormat {
   showWeekday: boolean;
 }
 
+export interface HealthCheck {
+  id: string;
+  label: string;
+  value: string;
+  level: "ok" | "warn" | "bad";
+}
+
+export interface HealthReport {
+  checks: HealthCheck[];
+  worst: "ok" | "warn" | "bad";
+}
+
 export interface StaleWorktree {
   repo: string;
   path: string;

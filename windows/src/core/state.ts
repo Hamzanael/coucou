@@ -2,7 +2,7 @@
 
 import type { BotEmoteName, BotStateName, IslandMode, IslandViewName } from "./layout";
 import type { EyeShape } from "../mochi/engine";
-import type { ClockFormat } from "./bridge";
+import type { ClockFormat, HealthReport } from "./bridge";
 import { SessionStore } from "./sessions";
 
 export type AgentSource = "claudeCode" | "n8n";
@@ -68,6 +68,7 @@ export const INTEGRATION_AGENTS: AgentTask[] = [
   task("integration_notion", "Notion", "#8C8C8C", "n8n"),
   task("integration_calcom", "Cal.com", "#C9956A", "n8n"),
   task("integration_stripe", "Stripe", "#0570DE", "n8n"),
+  task("integration_system", "System", "#22C55E", "n8n"),
 ];
 
 export const TOGGLEABLE_INTEGRATION_IDS = [
@@ -134,6 +135,9 @@ class AppState {
 
   isPinned = false;
   paused = false;
+
+  /** Latest storage / device health sample (Linux). */
+  health: HealthReport | null = null;
 
   /** One entry per live Claude Code session. */
   sessions = new SessionStore();
@@ -217,7 +221,8 @@ class AppState {
   loadIntegrationTasks() {
     for (const proto of INTEGRATION_AGENTS) {
       const shouldLoad =
-        proto.id === "integration_claude" || this.settings.activeIntegrations.includes(proto.id);
+        proto.id === "integration_claude" ||
+        (proto.id === "integration_system" ? this.clock != null : this.settings.activeIntegrations.includes(proto.id));
       const idx = this.tasks.findIndex((t) => t.id === proto.id);
       if (shouldLoad && idx < 0) this.tasks.push({ ...proto, steps: [] });
       if (!shouldLoad && idx >= 0) this.tasks.splice(idx, 1);
