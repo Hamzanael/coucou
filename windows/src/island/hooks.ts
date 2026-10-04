@@ -66,10 +66,14 @@ function clearSession() {
 
 export function registerHookHandlers(island: Island) {
   void onEvent<HookPayload>("hook", (payload) => handleHook(island, payload));
-  void onEvent<LiveSession[]>("claude-sessions", (live) => {
+  const sync = (live: LiveSession[] | null) => {
+    if (!live) return;
     State.sessions.sync(live, Date.now());
     State.notify();
-  });
+  };
+  void onEvent<LiveSession[]>("claude-sessions", sync);
+  // The poller's first send can beat this listener: ask once ourselves.
+  void Bridge.claudeSessions().then(sync);
 }
 
 function handleHook(island: Island, payload: HookPayload) {

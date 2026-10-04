@@ -213,6 +213,12 @@ fn start_worktree_auto_clean(app: AppHandle) {
     });
 }
 
+/// The running Claude Code sessions right now, for the page's first paint.
+#[tauri::command]
+async fn claude_sessions() -> Vec<claude_sessions::LiveSession> {
+    tauri::async_runtime::spawn_blocking(claude_sessions::running).await.unwrap_or_default()
+}
+
 /// The Ghostty tab a Claude Code session runs in, brought to the front.
 #[tauri::command]
 async fn focus_terminal(pid: u32) -> Result<String, String> {
@@ -551,6 +557,7 @@ pub fn run() {
             cleanup_run,
             teleport,
             focus_terminal,
+            claude_sessions,
             quit_app,
             hooks_status,
             hooks_preview,

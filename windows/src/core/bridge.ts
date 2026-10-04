@@ -6,6 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import type { Settings } from "./state";
+import type { LiveSession } from "./sessions";
 
 export const IS_TAURI =
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -177,6 +178,9 @@ export const Bridge = {
   /** The desktop's calendar events overlapping [since, until), unix seconds. */
   calendarEvents: (since: number, until: number) =>
     call<CalendarEvent[]>("calendar_events", { since, until }),
+
+  /** The running Claude Code sessions, asked for at start-up. */
+  claudeSessions: () => call<LiveSession[]>("claude_sessions"),
 
   /** Brings the Ghostty tab running this Claude Code process to the front. */
   focusTerminal: (pid: number) => callOrThrow<string>("focus_terminal", { pid }),

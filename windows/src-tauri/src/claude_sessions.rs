@@ -153,21 +153,19 @@ fn from_records() -> Vec<LiveSession> {
     out
 }
 
-/// Sends `claude-sessions` whenever the set of running sessions changes.
+/// Sends `claude-sessions` on every poll: titles and replies change without the
+/// set of sessions changing, and a page that started after the first send must
+/// not wait for a change to see anything.
 #[cfg(target_os = "linux")]
 pub fn start(app: tauri::AppHandle) {
     use tauri::Emitter;
     tauri::async_runtime::spawn(async move {
-        let mut last: Option<Vec<LiveSession>> = None;
         // Each poll starts the Claude CLI, so not too often.
         let mut ticker = tokio::time::interval(std::time::Duration::from_secs(20));
         loop {
             ticker.tick().await;
             let now = tauri::async_runtime::spawn_blocking(running).await.unwrap_or_default();
-            if last.as_ref() != Some(&now) {
-                let _ = app.emit_to(crate::island::WINDOW_LABEL, "claude-sessions", &now);
-                last = Some(now);
-            }
+            let _ = app.emit_to(crate::island::WINDOW_LABEL, "claude-sessions", &now);
         }
     });
 }
