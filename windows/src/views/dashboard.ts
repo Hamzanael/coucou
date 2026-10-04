@@ -27,8 +27,8 @@ function sessionCard(s: Session): HTMLElement {
     h(
       "div",
       { class: "dash-session-body" },
-      h("div", { class: "dash-session-head" }, h("b", { text: s.project }),
-        h("span", { text: `${s.state} · ${timeAgo(s.updatedAt)}` })),
+      h("div", { class: "dash-session-head" }, h("b", { text: s.name || s.project }),
+        h("span", { text: `${s.name ? `${s.project} · ` : ""}${s.state} · ${timeAgo(s.updatedAt)}` })),
       steps,
       h("button", {
         class: "link-btn",

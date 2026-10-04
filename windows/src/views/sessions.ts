@@ -58,8 +58,8 @@ export function renderSessionDetail(s: Session): HTMLElement {
       "div",
       { class: "session-head" },
       dot(color, 7),
-      h("b", { text: s.project }),
-      h("span", { class: "session-state", text: `${STATE_LABEL[s.state]} · ${timeAgo(s.updatedAt)}` }),
+      h("b", { text: s.name || s.project }),
+      h("span", { class: "session-state", text: `${s.name ? `${s.project} · ` : ""}${STATE_LABEL[s.state]} · ${timeAgo(s.updatedAt)}` }),
     ),
     steps,
     h("button", {

@@ -10,6 +10,8 @@ use serde::{Deserialize, Serialize};
 pub struct LiveSession {
     pub pid: u32,
     pub session_id: String,
+    /// Claude Code's own name for it (`--name`, `/rename`, or derived).
+    pub name: String,
     pub cwd: String,
     pub busy: bool,
     /// A background agent blocked on the user.
@@ -23,6 +25,7 @@ pub struct LiveSession {
 struct Record {
     pid: u32,
     session_id: Option<String>,
+    name: Option<String>,
     cwd: Option<String>,
     status: Option<String>,
     updated_at: Option<u64>,
@@ -33,6 +36,7 @@ pub fn parse(json: &str) -> Option<LiveSession> {
     Some(LiveSession {
         pid: r.pid,
         session_id: r.session_id?,
+        name: r.name.unwrap_or_default(),
         cwd: r.cwd.unwrap_or_default(),
         busy: r.status.as_deref() == Some("busy"),
         waiting: false,
@@ -45,6 +49,7 @@ pub fn parse(json: &str) -> Option<LiveSession> {
 #[serde(rename_all = "camelCase")]
 struct Agent {
     session_id: Option<String>,
+    name: Option<String>,
     pid: Option<u32>,
     cwd: Option<String>,
     kind: Option<String>,
@@ -65,6 +70,7 @@ pub fn parse_agents(json: &str) -> Option<Vec<LiveSession>> {
                 Some(LiveSession {
                     pid: a.pid.unwrap_or(0),
                     session_id: a.session_id?,
+                    name: a.name.unwrap_or_default(),
                     cwd: a.cwd.unwrap_or_default(),
                     busy: a.status.as_deref() == Some("busy") || matches!(state, "working" | "running"),
                     waiting: state == "blocked",

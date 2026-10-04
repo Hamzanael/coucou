@@ -17,6 +17,8 @@ export type SessionState = "idle" | "thinking" | "working" | "approval" | "quest
 
 export interface Session {
   id: string;
+  /** Claude Code's own name for the session, when it is running. */
+  name?: string;
   project: string;
   cwd: string;
   state: SessionState;
@@ -31,6 +33,7 @@ export interface Session {
 /** A running session as Rust reads it from ~/.claude/sessions. */
 export interface LiveSession {
   sessionId: string;
+  name?: string;
   cwd: string;
   busy: boolean;
   /** A background agent blocked on the user. */
@@ -78,6 +81,8 @@ export class SessionStore {
       this.sessions.delete(id);
       return null;
     }
+    // A running session's folder comes from Claude Code (sync); the hook's cwd
+    // follows the shell around and only fills in for sessions not seen yet.
     const cwd = p.cwd ?? "";
     const s: Session = this.sessions.get(id) ?? {
       id, cwd, project: lastPathComponent(cwd) || "Session", state: "thinking", step: "", steps: [], updatedAt: now,
@@ -89,10 +94,13 @@ export class SessionStore {
       s.project = lastPathComponent(cwd);
     }
     switch (name) {
-      case "UserPromptSubmit":
+      case "UserPromptSubmit": {
         s.state = "thinking";
-        s.step = (p.prompt ?? p.message ?? "").slice(0, 60);
+        const prompt = (p.prompt ?? p.message ?? "").trim();
+        // Background-task results arrive as prompts made of tags, not words.
+        s.step = prompt.startsWith("<") ? "Background task update" : prompt.slice(0, 60);
         break;
+      }
       case "PreToolUse":
         s.state = "working";
         s.step = stepLabel(p.tool_name ?? "Tool", p.tool_input ?? {});
@@ -139,12 +147,17 @@ export class SessionStore {
       const s = this.sessions.get(l.sessionId);
       if (!s) {
         this.sessions.set(l.sessionId, {
-          id: l.sessionId, cwd: l.cwd, project: lastPathComponent(l.cwd) || "Session",
+          id: l.sessionId, name: l.name || undefined, cwd: l.cwd, project: lastPathComponent(l.cwd) || "Session",
           state: l.waiting ? "question" : l.busy ? "working" : "idle", step: l.waiting ? "waiting for you" : "", steps: [], updatedAt: Math.min(l.updatedAt, now), live: true,
         });
         continue;
       }
       s.live = true;
+      if (l.name) s.name = l.name;
+      if (l.cwd) {
+        s.cwd = l.cwd;
+        s.project = lastPathComponent(l.cwd) || s.project;
+      }
       if (l.waiting && s.state !== "approval") s.state = "question";
       else if (!l.busy && (s.state === "working" || s.state === "thinking")) s.state = "idle";
       if (l.busy && s.state === "idle") s.state = "working";
