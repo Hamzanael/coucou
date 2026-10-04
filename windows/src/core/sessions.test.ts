@@ -108,6 +108,30 @@ describe("SessionStore", () => {
     expect(s.list(2)[0].step).toBe("yes do");
   });
 
+  it("keeps sessions in place: ordered by when they started, not by activity", () => {
+    const s = new SessionStore();
+    s.sync(
+      [
+        { sessionId: "b", cwd: "/p/b", busy: false, updatedAt: 200 },
+        { sessionId: "a", cwd: "/p/a", busy: false, updatedAt: 100 },
+      ],
+      1000,
+    );
+    expect(s.list(1000).map((r) => r.id)).toEqual(["a", "b"]);
+    s.apply(ev("PreToolUse", { session_id: "b", tool_name: "Bash", tool_input: {} }), 2000);
+    s.apply(ev("PreToolUse", { session_id: "a", tool_name: "Bash", tool_input: {} }), 3000);
+    expect(s.list(3000).map((r) => r.id)).toEqual(["a", "b"]);
+    s.sync(
+      [
+        { sessionId: "b", cwd: "/p/b", busy: true, updatedAt: 200 },
+        { sessionId: "a", cwd: "/p/a", busy: true, updatedAt: 100 },
+        { sessionId: "c", cwd: "/p/c", busy: true, updatedAt: 300 },
+      ],
+      4000,
+    );
+    expect(s.list(4000).map((r) => r.id)).toEqual(["a", "b", "c"]);
+  });
+
   it("labels steps in English", () => {
     expect(stepLabel("Edit", { file_path: "/x/y/Main.kt" })).toBe("Edit · Main.kt");
     expect(stepLabel("Grep", { pattern: "foo" })).toBe("Search · foo");
