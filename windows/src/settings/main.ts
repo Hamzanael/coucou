@@ -410,6 +410,17 @@ function generalSection(): HTMLElement {
     void save();
   });
 
+  const autoDays = h("input", {
+    type: "number", min: "1", max: "365", step: "1",
+    value: String(settings.worktreeAutoDays),
+    style: "width:72px",
+  }) as HTMLInputElement;
+  autoDays.addEventListener("change", () => {
+    settings.worktreeAutoDays = Math.max(1, Math.min(365, Math.round(Number(autoDays.value)) || 7));
+    autoDays.value = String(settings.worktreeAutoDays);
+    void save();
+  });
+
   const screen = h("select", {}) as HTMLSelectElement;
   screen.append(
     h("option", { value: "primary", text: "Main display" }),
@@ -452,6 +463,12 @@ function generalSection(): HTMLElement {
       h("label", { text: "Idle worktree" }),
       idleDays,
       h("span", { class: "hint", text: "days untouched and clean" }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: "Auto-remove" }),
+      toggle(settings.worktreeAutoClean, (v) => { settings.worktreeAutoClean = v; void save(); }),
+      autoDays,
+      h("span", { class: "hint", text: "days untouched (daily; clean worktrees only, branches kept)" }),
     ),
   );
 }

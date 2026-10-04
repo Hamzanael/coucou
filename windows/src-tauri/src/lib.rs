@@ -168,6 +168,42 @@ fn expand_home(p: &str) -> std::path::PathBuf {
     }
 }
 
+/// Daily, unattended: removes clean worktrees untouched for the configured days
+/// (and missing folders) under the configured roots, then tells the island.
+fn start_worktree_auto_clean(app: AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_secs(300)).await;
+        let mut ticker = tokio::time::interval(std::time::Duration::from_secs(24 * 3600));
+        loop {
+            ticker.tick().await;
+            let Some(shared) = app.try_state::<Shared>() else { continue };
+            let (enabled, roots, days) = {
+                let s = shared.settings.lock().unwrap();
+                let roots = s.worktree_roots.iter().map(|r| expand_home(r)).collect::<Vec<_>>();
+                (s.worktree_auto_clean, roots, s.worktree_auto_days)
+            };
+            if !enabled || integrations::PAUSED.load(Ordering::Relaxed) {
+                continue;
+            }
+            let removed = tauri::async_runtime::spawn_blocking(move || {
+                // Scanned with the auto threshold so "idle" means idle for `days`.
+                let found = worktrees::scan(&roots, days);
+                let picked = worktrees::auto_candidates(&found, days);
+                worktrees::remove(&found, &picked)
+            })
+            .await
+            .unwrap_or_default();
+            let ok: Vec<_> = removed.iter().filter(|r| r.ok).collect();
+            for r in &removed {
+                log::line(format!("auto-clean {} {}: {}", if r.ok { "removed" } else { "kept" }, r.path, r.message));
+            }
+            if !ok.is_empty() {
+                let _ = app.emit_to(island::WINDOW_LABEL, "worktrees-cleaned", ok.len());
+            }
+        }
+    });
+}
+
 #[tauri::command]
 async fn worktrees_scan(shared: State<'_, Shared>) -> Result<Vec<worktrees::Stale>, String> {
     let (roots, days) = {
@@ -499,6 +535,7 @@ pub fn run() {
             pipe::start(handle.clone());
             #[cfg(target_os = "linux")]
             health::start(handle.clone());
+            start_worktree_auto_clean(handle.clone());
             integrations::start(handle.clone());
             Ok(())
         })

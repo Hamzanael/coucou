@@ -99,6 +99,9 @@ export interface Settings {
   worktreeRoots: string[];
   /** A clean worktree untouched this many days counts as stale. */
   worktreeIdleDays: number;
+  /** Once a day, remove clean worktrees untouched for `worktreeAutoDays`. */
+  worktreeAutoClean: boolean;
+  worktreeAutoDays: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -115,6 +118,8 @@ export const DEFAULT_SETTINGS: Settings = {
   model: "claude-opus-5",
   worktreeRoots: ["~/IdeaProjects"],
   worktreeIdleDays: 14,
+  worktreeAutoClean: false,
+  worktreeAutoDays: 7,
 };
 
 type Listener = () => void;

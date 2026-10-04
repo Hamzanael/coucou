@@ -54,6 +54,12 @@ async function main() {
 
   await onEvent<null>("screen-changed", () => void Bridge.reposition());
 
+  await onEvent<number>("worktrees-cleaned", (count) => {
+    const days = State.settings.worktreeAutoDays;
+    State.noteMessage = `Removed ${count} stale worktree${count === 1 ? "" : "s"} untouched for ${days}+ days`;
+    island.alert("note");
+  });
+
   // The settings window writes preferences; apply them here without a restart.
   await onEvent<Settings>("settings-changed", (s) => {
     State.settings = { ...State.settings, ...s };

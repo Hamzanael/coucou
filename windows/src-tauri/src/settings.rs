@@ -27,6 +27,15 @@ pub struct Settings {
     /// A clean worktree untouched this many days counts as stale.
     #[serde(default = "default_worktree_idle_days")]
     pub worktree_idle_days: u64,
+    /// Once a day, remove clean worktrees untouched for `worktree_auto_days`.
+    #[serde(default)]
+    pub worktree_auto_clean: bool,
+    #[serde(default = "default_worktree_auto_days")]
+    pub worktree_auto_days: u64,
+}
+
+fn default_worktree_auto_days() -> u64 {
+    7
 }
 
 fn default_worktree_roots() -> Vec<String> {
@@ -60,6 +69,8 @@ impl Default for Settings {
             model: default_model(),
             worktree_roots: default_worktree_roots(),
             worktree_idle_days: default_worktree_idle_days(),
+            worktree_auto_clean: false,
+            worktree_auto_days: default_worktree_auto_days(),
         }
     }
 }

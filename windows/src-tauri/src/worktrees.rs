@@ -196,6 +196,22 @@ pub fn scan(roots: &[PathBuf], idle_threshold: u64) -> Vec<Stale> {
     out
 }
 
+/// What the daily auto-clean may remove on its own: worktrees known to be clean,
+/// on a branch, and untouched for `days`+ days, and folders that no longer exist.
+/// Merged or upstream-gone ones may hold uncommitted work, and a detached HEAD may
+/// hold commits no branch keeps — those wait for a click.
+pub fn auto_candidates(stale: &[Stale], days: u64) -> Vec<String> {
+    stale
+        .iter()
+        .filter(|s| match s.reason {
+            Reason::Missing => true,
+            Reason::Idle => s.branch.is_some() && s.idle_days.is_some_and(|d| d >= days),
+            _ => false,
+        })
+        .map(|s| s.path.clone())
+        .collect()
+}
+
 /// Removes only what the last scan reported, never with --force: a worktree
 /// with changes is refused by git and reported back.
 pub fn remove(stale: &[Stale], paths: &[String]) -> Vec<Removal> {
@@ -266,7 +282,7 @@ worktree /tmp/gone-wt\nHEAD 3333\ndetached\nprunable gitdir file points to non-e
     }
 
     fn stale(path: &str, reason: Reason, idle_days: Option<u64>) -> Stale {
-        Stale { repo: "/r".into(), path: path.into(), branch: None, reason, idle_days, size_kb: None }
+        Stale { repo: "/r".into(), path: path.into(), branch: Some("b".into()), reason, idle_days, size_kb: None }
     }
 
     #[test]
@@ -277,6 +293,7 @@ worktree /tmp/gone-wt\nHEAD 3333\ndetached\nprunable gitdir file points to non-e
             stale("/c", Reason::Merged, Some(30)),
             stale("/d", Reason::UpstreamGone, Some(30)),
             stale("/e", Reason::Missing, None),
+            Stale { branch: None, ..stale("/f", Reason::Idle, Some(30)) },
         ];
         assert_eq!(auto_candidates(&found, 7), vec!["/a".to_string(), "/e".to_string()]);
     }
