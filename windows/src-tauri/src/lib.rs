@@ -19,6 +19,8 @@ mod platform;
 mod secrets;
 mod settings;
 mod teleport;
+#[cfg(target_os = "linux")]
+mod terminal;
 mod tray;
 #[cfg(windows)]
 mod win_user;
