@@ -7,7 +7,7 @@ import { Bridge, onEvent } from "../core/bridge";
 import { Sound } from "../core/sound";
 import { State } from "../core/state";
 import type { Island } from "./island";
-import { stepLabel, type HookPayload } from "../core/sessions";
+import { stepLabel, type HookPayload, type LiveSession } from "../core/sessions";
 
 const CLAUDE_ID = "integration_claude";
 
@@ -66,6 +66,10 @@ function clearSession() {
 
 export function registerHookHandlers(island: Island) {
   void onEvent<HookPayload>("hook", (payload) => handleHook(island, payload));
+  void onEvent<LiveSession[]>("claude-sessions", (live) => {
+    State.sessions.sync(live, Date.now());
+    State.notify();
+  });
 }
 
 function handleHook(island: Island, payload: HookPayload) {

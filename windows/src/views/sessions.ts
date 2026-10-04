@@ -7,6 +7,7 @@ import { timeAgo } from "./integrations";
 import { h, dot } from "./dom";
 
 const STATE_COLOR: Record<Session["state"], string> = {
+  idle: "#6B7079",
   thinking: "#A78BFA",
   working: "#3B9EFF",
   approval: "#F5A524",
@@ -15,12 +16,10 @@ const STATE_COLOR: Record<Session["state"], string> = {
   error: "#F4505E",
 };
 
-/** What fits the overview's left card. */
-const MAX_ROWS = 3;
-
 export function renderSessions(sessions: Session[]): HTMLElement {
   const list = h("div", { class: "sessions" });
-  for (const s of sessions.slice(0, MAX_ROWS)) {
+  // Every running session, scrollable: the card shows about three at a time.
+  for (const s of sessions) {
     list.append(
       h(
         "button",
@@ -35,9 +34,6 @@ export function renderSessions(sessions: Session[]): HTMLElement {
         h("span", { class: "session-age", text: timeAgo(s.updatedAt) }),
       ),
     );
-  }
-  if (sessions.length > MAX_ROWS) {
-    list.append(h("div", { class: "session-more", text: `+${sessions.length - MAX_ROWS} more` }));
   }
   return list;
 }

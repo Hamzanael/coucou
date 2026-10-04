@@ -13,7 +13,7 @@ export interface HookPayload {
   tool_input?: Record<string, unknown>;
 }
 
-export type SessionState = "thinking" | "working" | "approval" | "question" | "finished" | "error";
+export type SessionState = "idle" | "thinking" | "working" | "approval" | "question" | "finished" | "error";
 
 export interface Session {
   id: string;
@@ -21,6 +21,16 @@ export interface Session {
   cwd: string;
   state: SessionState;
   step: string;
+  updatedAt: number;
+  /** Known to be running (from Claude Code's own records): exempt from the TTL. */
+  live?: boolean;
+}
+
+/** A running session as Rust reads it from ~/.claude/sessions. */
+export interface LiveSession {
+  sessionId: string;
+  cwd: string;
+  busy: boolean;
   updatedAt: number;
 }
 
@@ -107,9 +117,32 @@ export class SessionStore {
     return s;
   }
 
+  /**
+   * The running sessions are the truth for which rows exist: quiet ones are
+   * added, ended ones dropped. Hook events keep supplying the detail.
+   */
+  sync(live: LiveSession[], now: number) {
+    const running = new Set(live.map((l) => l.sessionId));
+    for (const id of [...this.sessions.keys()]) if (!running.has(id)) this.sessions.delete(id);
+    for (const l of live) {
+      const s = this.sessions.get(l.sessionId);
+      if (!s) {
+        this.sessions.set(l.sessionId, {
+          id: l.sessionId, cwd: l.cwd, project: lastPathComponent(l.cwd) || "Session",
+          state: l.busy ? "working" : "idle", step: "", updatedAt: Math.min(l.updatedAt, now), live: true,
+        });
+        continue;
+      }
+      s.live = true;
+      if (!l.busy && (s.state === "working" || s.state === "thinking")) s.state = "idle";
+      if (l.busy && s.state === "idle") s.state = "working";
+      s.updatedAt = Math.max(s.updatedAt, Math.min(l.updatedAt, now));
+    }
+  }
+
   list(now: number): Session[] {
     for (const [id, s] of this.sessions) {
-      if (now - s.updatedAt > SESSION_TTL_MS) this.sessions.delete(id);
+      if (!s.live && now - s.updatedAt > SESSION_TTL_MS) this.sessions.delete(id);
     }
     return [...this.sessions.values()].sort((a, b) => b.updatedAt - a.updatedAt);
   }

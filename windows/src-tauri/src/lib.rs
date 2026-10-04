@@ -536,6 +536,8 @@ pub fn run() {
             pipe::start(handle.clone());
             #[cfg(target_os = "linux")]
             health::start(handle.clone());
+            #[cfg(target_os = "linux")]
+            claude_sessions::start(handle.clone());
             start_worktree_auto_clean(handle.clone());
             integrations::start(handle.clone());
             Ok(())

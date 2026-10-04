@@ -1543,7 +1543,8 @@ input[type="range"]::-webkit-slider-thumb {
   gap: 3px;
   padding: 9px 30px 8px 108px;
   height: 100%;
-  overflow: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
 }
 
 .session-row {
