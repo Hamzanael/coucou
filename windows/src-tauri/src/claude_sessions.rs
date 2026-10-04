@@ -179,6 +179,19 @@ mod tests {
     }
 
     #[test]
+    fn hides_background_agents_that_are_long_gone() {
+        let day = 86_400_000u64;
+        let now = 100 * day;
+        let json = format!(r#"[
+          {{"kind":"background","sessionId":"old","state":"blocked","startedAt":{}}},
+          {{"kind":"background","sessionId":"recent","state":"blocked","startedAt":{}}},
+          {{"kind":"background","sessionId":"working","state":"working","startedAt":{}}}
+        ]"#, now - 48 * day, now - day, now - 48 * day);
+        let ids: Vec<String> = current(parse_agents(&json).unwrap(), now).into_iter().map(|s| s.session_id).collect();
+        assert_eq!(ids, vec!["recent".to_string(), "working".to_string()]);
+    }
+
+    #[test]
     fn busy_status_and_missing_fields() {
         let s = parse(r#"{"pid":1,"sessionId":"x","cwd":"/a","status":"busy"}"#).unwrap();
         assert!(s.busy);

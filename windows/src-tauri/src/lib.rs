@@ -19,6 +19,7 @@ mod platform;
 mod secrets;
 mod settings;
 mod teleport;
+mod transcripts;
 #[cfg(target_os = "linux")]
 mod terminal;
 mod tray;
