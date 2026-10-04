@@ -5,6 +5,7 @@ mod claude;
 mod files;
 mod hooks;
 mod ide;
+mod worktrees;
 mod integrations;
 mod island;
 mod log;
