@@ -6,6 +6,8 @@ mod files;
 mod hooks;
 mod ide;
 mod worktrees;
+#[cfg(target_os = "linux")]
+mod health;
 mod integrations;
 mod island;
 mod log;
