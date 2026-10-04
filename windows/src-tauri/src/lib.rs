@@ -4,6 +4,7 @@ mod calendar;
 mod claude;
 mod files;
 mod hooks;
+mod ide;
 mod integrations;
 mod island;
 mod log;
@@ -15,7 +16,6 @@ mod tray;
 #[cfg(windows)]
 mod win_user;
 
-use std::process::Command;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 
@@ -156,22 +156,13 @@ fn open_url(url: String) {
     platform::open_url(&url);
 }
 
-/// "Open terminal" opens the working folder in VS Code when `code` is on PATH,
-/// and falls back to the file manager otherwise.
+/// "Open" on a session or the Claude pill: the project in IntelliJ, or the file
+/// manager when no IntelliJ launcher is installed. The path is handed over as an
+/// argument — no shell ever sees it.
 #[tauri::command]
-fn open_in_vscode(path: Option<String>) -> bool {
-    // No `cmd /C` anywhere near this. The path is a project folder chosen by
-    // whoever is using Claude Code, and cmd would happily read `&`, `^` and `%`
-    // in a folder name as syntax. Finding the launcher ourselves and handing the
-    // path over as a separate argument keeps it a path.
-    if let Some(code) = find_on_path("code") {
-        let mut cmd = Command::new(code);
-        if let Some(p) = path.as_deref().filter(|p| !p.is_empty()) {
-            cmd.arg(p);
-        }
-        if platform::quiet(&mut cmd).spawn().is_ok() {
-            return true;
-        }
+fn open_in_ide(path: Option<String>) -> bool {
+    if ide::open(path.as_deref()) {
+        return true;
     }
     if let Some(p) = path.as_deref().filter(|p| !p.is_empty()) {
         platform::open_folder(p);
@@ -183,7 +174,7 @@ fn open_in_vscode(path: Option<String>) -> bool {
 /// Rust quotes arguments correctly for `.cmd`/`.bat` targets since 1.77, so
 /// spawning `code.cmd` directly is safe.
 #[cfg(windows)]
-fn find_on_path(stem: &str) -> Option<std::path::PathBuf> {
+pub(crate) fn find_on_path(stem: &str) -> Option<std::path::PathBuf> {
     let exts = std::env::var("PATHEXT").unwrap_or_else(|_| ".COM;.EXE;.BAT;.CMD".into());
     let dirs = std::env::var_os("PATH")?;
     for dir in std::env::split_paths(&dirs) {
@@ -199,7 +190,7 @@ fn find_on_path(stem: &str) -> Option<std::path::PathBuf> {
 
 /// `which`, without a shell: the first executable file called `stem` on $PATH.
 #[cfg(not(windows))]
-fn find_on_path(stem: &str) -> Option<std::path::PathBuf> {
+pub(crate) fn find_on_path(stem: &str) -> Option<std::path::PathBuf> {
     use std::os::unix::fs::PermissionsExt;
     let dirs = std::env::var_os("PATH")?;
     std::env::split_paths(&dirs)
@@ -429,7 +420,7 @@ pub fn run() {
             set_window_mode,
             reposition,
             open_url,
-            open_in_vscode,
+            open_in_ide,
             quit_app,
             hooks_status,
             hooks_preview,

@@ -11,6 +11,7 @@ import { createMiniBot, pruneMiniBots } from "../mochi/minibots";
 import { buildPrompt } from "./chat";
 import { buildChoose, buildUpload, buildUploading } from "./upload";
 import { buildCalendar } from "./calendar";
+import { liveSessions, renderSessions } from "./sessions";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 
 export interface ViewActions {
@@ -181,12 +182,23 @@ function buildOverview(actions: ViewActions): ViewHost {
         mode = null;
       }
 
-      // VS Code with a live Claude Code session keeps the ticker; every other
+      // Claude with a live session keeps the ticker; every other
       // pill shows its own card, exactly like IntegrationCardView.
       const sessionActive =
         task?.id === "integration_claude" && (task.state !== "idle" || task.steps.length > 0);
 
-      if (task && sessionActive) {
+      const sessions = liveSessions();
+      if (task?.id === "integration_claude" && sessions.length > 0) {
+        const key = sessions
+          .map((s) => `${s.id}${s.state}${s.step}${Math.floor(s.updatedAt / 60_000)}`)
+          .join("|");
+        if (mode !== "card" || cardKey !== key) {
+          clear(leftBody);
+          leftBody.append(renderSessions(sessions));
+          mode = "card";
+          cardKey = key;
+        }
+      } else if (task && sessionActive) {
         if (mode !== "ticker") {
           clear(leftBody);
           leftBody.append(tickerBody);
@@ -236,7 +248,7 @@ function buildOverview(actions: ViewActions): ViewHost {
 }
 
 function buildPill(task: AgentTask, actions: ViewActions): HTMLElement {
-  const label = task.id === "integration_claude" ? "VS Code" : task.name;
+  const label = task.name;
   const canvas = createMiniBot(task, 24);
   const pill = h(
     "div",

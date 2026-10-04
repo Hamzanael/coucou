@@ -1,76 +1,23 @@
 // Claude Code hook events → island state.
 // Port of HookServer.processEvent / processPermissionRequest from the macOS app.
 // Difference from macOS: no terminal filter. On Windows the hook fires from any
-// terminal (Windows Terminal, VS Code, PowerShell…) and all of them are handled.
+// terminal (Windows Terminal, IntelliJ, PowerShell…) and all of them are handled.
 
 import { Bridge, onEvent } from "../core/bridge";
 import { Sound } from "../core/sound";
 import { State } from "../core/state";
 import type { Island } from "./island";
+import { stepLabel, type HookPayload } from "../core/sessions";
 
 const CLAUDE_ID = "integration_claude";
 
 /** Clears the approval card if no decision was made before the hook gave up. */
 let pendingTimeout: number | null = null;
 
-interface HookPayload {
-  hook_event_name?: string;
-  request_id?: string;
-  session_id?: string;
-  cwd?: string;
-  message?: string;
-  /** UserPromptSubmit carries `prompt`; `message` belongs to Notification/Stop. */
-  prompt?: string;
-  tool_name?: string;
-  tool_input?: Record<string, unknown>;
-}
-
-const PROJECT_ALIASES: Record<string, string> = {
-  "notch-buddy": "Notch Buddy",
-  notchbuddy: "Notch Buddy",
-  notch_buddy: "Notch Buddy",
-};
-
-function aliasProjectName(name: string): string {
-  return PROJECT_ALIASES[name.toLowerCase()] ?? name;
-}
-
 function lastPathComponent(p: string): string {
   const cleaned = p.replace(/[\\/]+$/, "");
   const idx = Math.max(cleaned.lastIndexOf("\\"), cleaned.lastIndexOf("/"));
   return idx >= 0 ? cleaned.slice(idx + 1) : cleaned;
-}
-
-/** frenchStep() — same labels as the macOS app. */
-const TOOL_LABELS: Record<string, string> = {
-  Bash: "Exécute",
-  Read: "Lit",
-  Write: "Écrit",
-  Edit: "Modifie",
-  Glob: "Cherche",
-  Grep: "Recherche",
-  WebSearch: "Recherche web",
-  WebFetch: "Récupère",
-  TodoWrite: "Tâches",
-  Task: "Agent",
-  LS: "Liste",
-  MultiEdit: "Modifie",
-  NotebookEdit: "Notebook",
-  PowerShell: "Exécute",
-};
-
-function stepLabel(tool: string, input: Record<string, unknown>): string {
-  const label = TOOL_LABELS[tool] ?? tool;
-  const str = (k: string) => (typeof input[k] === "string" ? (input[k] as string) : null);
-  const cmd = str("command");
-  if (cmd) return `${label} · ${cmd.slice(0, 40)}`;
-  const path = str("path");
-  if (path) return `${label} · ${lastPathComponent(path)}`;
-  const file = str("file_path");
-  if (file) return `${label} · ${lastPathComponent(file)}`;
-  const query = str("query");
-  if (query) return `${label} · ${query.slice(0, 40)}`;
-  return label;
 }
 
 /**
@@ -113,7 +60,7 @@ function clearSession() {
   if (!t) return;
   t.steps = [];
   t.stepIndex = 0;
-  t.name = "VS Code";
+  t.name = "Claude";
   t.pillBadge = null;
 }
 
@@ -129,11 +76,12 @@ function handleHook(island: Island, payload: HookPayload) {
     if (payload.request_id) void Bridge.approvalDecline(payload.request_id);
     return;
   }
+  State.sessions.apply(payload, Date.now());
 
   const name = payload.hook_event_name ?? "";
   const cwd = payload.cwd ?? "";
   const raw = lastPathComponent(cwd);
-  const projectName = aliasProjectName(raw || "Session");
+  const projectName = raw || "Session";
   const focused = State.focusId === CLAUDE_ID;
 
   /** Alerts force the island open; work events only reveal the compact island. */
@@ -280,5 +228,12 @@ function handleHook(island: Island, payload: HookPayload) {
     default:
       break;
   }
+  // With several sessions at once the Claude pill shows the one needing you most.
+  const busiest = State.sessions.busiest(Date.now());
+  const claude = State.tasks.find((t) => t.id === CLAUDE_ID);
+  // "finished" is left to the Stop handler's own 5 s flash: a pill stuck on
+  // finished would keep the clock's click on the overview instead of the calendar.
+  const live = busiest !== "idle" && busiest !== "finished";
+  if (claude && live && claude.state !== "approval") claude.state = busiest;
   State.notify();
 }
