@@ -35,6 +35,8 @@ use settings::Settings;
 pub struct Shared {
     pub settings: Mutex<Settings>,
     pub gate: Arc<PollGate>,
+    /// What the Worktrees view last showed: removal never reaches past it.
+    pub last_scan: Mutex<Vec<worktrees::Stale>>,
 }
 
 #[derive(Serialize)]
@@ -155,6 +157,37 @@ fn open_url(url: String) {
         return;
     }
     platform::open_url(&url);
+}
+
+fn expand_home(p: &str) -> std::path::PathBuf {
+    match p.strip_prefix("~/") {
+        Some(rest) => platform::home().join(rest),
+        None => std::path::PathBuf::from(p),
+    }
+}
+
+#[tauri::command]
+async fn worktrees_scan(shared: State<'_, Shared>) -> Result<Vec<worktrees::Stale>, String> {
+    let (roots, days) = {
+        let s = shared.settings.lock().unwrap();
+        (s.worktree_roots.iter().map(|r| expand_home(r)).collect::<Vec<_>>(), s.worktree_idle_days)
+    };
+    let found = tauri::async_runtime::spawn_blocking(move || worktrees::scan(&roots, days))
+        .await
+        .map_err(|e| e.to_string())?;
+    *shared.last_scan.lock().unwrap() = found.clone();
+    Ok(found)
+}
+
+#[tauri::command]
+async fn worktrees_remove(
+    shared: State<'_, Shared>,
+    paths: Vec<String>,
+) -> Result<Vec<worktrees::Removal>, String> {
+    let stale = shared.last_scan.lock().unwrap().clone();
+    tauri::async_runtime::spawn_blocking(move || worktrees::remove(&stale, &paths))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// "Open" on a session or the Claude pill: the project in IntelliJ, or the file
@@ -408,6 +441,7 @@ pub fn run() {
         .manage(Shared {
             settings: Mutex::new(loaded.clone()),
             gate: gate.clone(),
+            last_scan: Mutex::new(Vec::new()),
         })
         .manage(Pending::default())
         .manage(Chat::default())
@@ -422,6 +456,8 @@ pub fn run() {
             reposition,
             open_url,
             open_in_ide,
+            worktrees_scan,
+            worktrees_remove,
             quit_app,
             hooks_status,
             hooks_preview,

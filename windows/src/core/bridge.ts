@@ -38,6 +38,21 @@ export interface ClockFormat {
   showWeekday: boolean;
 }
 
+export interface StaleWorktree {
+  repo: string;
+  path: string;
+  branch: string | null;
+  reason: "missing" | "merged" | "upstreamGone" | "idle";
+  idleDays: number | null;
+  sizeKb: number | null;
+}
+
+export interface WorktreeRemoval {
+  path: string;
+  ok: boolean;
+  message: string;
+}
+
 export interface CalendarEvent {
   id: string;
   summary: string;
@@ -120,6 +135,11 @@ export const Bridge = {
   /** The desktop's calendar events overlapping [since, until), unix seconds. */
   calendarEvents: (since: number, until: number) =>
     call<CalendarEvent[]>("calendar_events", { since, until }),
+
+  // ── Worktrees ─────────────────────────────────────────────────────────────
+  worktreesScan: () => call<StaleWorktree[]>("worktrees_scan"),
+  /** Only paths from the last scan are removed; never forced, branches kept. */
+  worktreesRemove: (paths: string[]) => call<WorktreeRemoval[]>("worktrees_remove", { paths }),
 
   /** Tray → Pause. Stops the integration pollers, not just the island. */
   setPaused: (paused: boolean) => call<void>("set_paused", { paused }),

@@ -21,6 +21,20 @@ pub struct Settings {
     /// Defaulted explicitly so a settings.json written by an older build still loads.
     #[serde(default = "default_model")]
     pub model: String,
+    /// Folders whose git repos are scanned for stale worktrees (`~/` allowed).
+    #[serde(default = "default_worktree_roots")]
+    pub worktree_roots: Vec<String>,
+    /// A clean worktree untouched this many days counts as stale.
+    #[serde(default = "default_worktree_idle_days")]
+    pub worktree_idle_days: u64,
+}
+
+fn default_worktree_roots() -> Vec<String> {
+    vec!["~/IdeaProjects".into()]
+}
+
+fn default_worktree_idle_days() -> u64 {
+    14
 }
 
 fn default_model() -> String {
@@ -44,6 +58,8 @@ impl Default for Settings {
             autostart: false,
             hooks_installed: false,
             model: default_model(),
+            worktree_roots: default_worktree_roots(),
+            worktree_idle_days: default_worktree_idle_days(),
         }
     }
 }

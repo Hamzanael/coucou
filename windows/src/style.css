@@ -1584,3 +1584,77 @@ input[type="range"]::-webkit-slider-thumb {
   font-size: 10.5px;
   padding-left: 9px;
 }
+
+/* ── Stale worktrees ────────────────────────────────────────────────────── */
+
+.wt {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 10px 16px 10px 96px;
+  gap: 6px;
+}
+
+.wt-head {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  font-size: 12.5px;
+  min-width: 0;
+}
+
+.wt-status {
+  color: var(--dim);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wt-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  scrollbar-width: none;
+}
+
+.wt-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 11.5px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.wt-row span {
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wt-why {
+  margin-left: auto;
+  color: var(--amber) !important;
+}
+
+.wt-size {
+  width: 56px;
+  text-align: right;
+}
+
+.wt-empty {
+  color: var(--dim-3);
+  font-size: 12px;
+}
+
+.wt-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}

@@ -11,6 +11,7 @@ import { createMiniBot, pruneMiniBots } from "../mochi/minibots";
 import { buildPrompt } from "./chat";
 import { buildChoose, buildUpload, buildUploading } from "./upload";
 import { buildCalendar } from "./calendar";
+import { buildWorktrees } from "./worktrees";
 import { liveSessions, renderSessions } from "./sessions";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 
@@ -88,6 +89,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
   const tabChat = h("button", { class: "tab", title: "Ask", onclick: () => go("prompt") }, svg(ICONS.bubble, 13));
   const tabDrop = h("button", { class: "tab", title: "Drop", onclick: () => go("upload") }, svg(ICONS.plus, 13));
   const tabCalendar = h("button", { class: "tab", title: "Calendar", onclick: () => go("calendar") }, svg(ICONS.calendar, 13));
+  const tabWorktrees = h("button", { class: "tab", title: "Worktrees", onclick: () => go("worktrees") }, svg(ICONS.branch, 13));
 
   const gearBtn = h("button", { title: "Settings", onclick: () => go("settings") }, svg(ICONS.gear, 14));
   const soundBtn = h("button", { title: "Mute", onclick: () => actions.toggleSound() }, svg(ICONS.speakerOn, 14));
@@ -101,7 +103,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
   const el = h(
     "div",
     { id: "header" },
-    h("div", { class: "tabs" }, tabHome, tabChat, tabDrop, tabCalendar),
+    h("div", { class: "tabs" }, tabHome, tabChat, tabDrop, tabCalendar, tabWorktrees),
     h("div", { class: "header-actions" }, gearBtn, soundBtn, closeBtn),
   );
 
@@ -114,6 +116,8 @@ export function buildHeader(actions: ViewActions): ViewHost {
       tabDrop.classList.toggle("on", v === "upload");
       tabCalendar.classList.toggle("on", v === "calendar");
       tabCalendar.style.display = State.clock ? "" : "none";
+      tabWorktrees.classList.toggle("on", v === "worktrees");
+      tabWorktrees.style.display = State.clock ? "" : "none";
       gearBtn.classList.toggle("on", v === "settings");
       clear(gearBtn);
       gearBtn.append(svg(v === "settings" ? ICONS.gearFill : ICONS.gear, 14));
@@ -523,6 +527,7 @@ export function buildViews(
   map.set("uploading", buildUploading());
   map.set("choose", buildChoose(actions));
   map.set("calendar", buildCalendar(() => actions.blip()));
+  map.set("worktrees", buildWorktrees(() => actions.blip()));
   // Not in the Windows v1: sending a file by email, window attach + web result.
   map.set("mail", buildPlaceholder("Sending by email isn't in this version.", ""));
   map.set("searching", buildPlaceholder("Claude is searching…", ""));

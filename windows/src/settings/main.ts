@@ -386,6 +386,30 @@ function generalSection(): HTMLElement {
     void save();
   });
 
+  const roots = h("input", {
+    type: "text",
+    value: settings.worktreeRoots.join(", "),
+    placeholder: "~/IdeaProjects",
+    style: "width:220px",
+  }) as HTMLInputElement;
+  roots.addEventListener("change", () => {
+    const list = roots.value.split(",").map((r) => r.trim()).filter(Boolean);
+    settings.worktreeRoots = list.length ? list : ["~/IdeaProjects"];
+    roots.value = settings.worktreeRoots.join(", ");
+    void save();
+  });
+
+  const idleDays = h("input", {
+    type: "number", min: "1", max: "365", step: "1",
+    value: String(settings.worktreeIdleDays),
+    style: "width:72px",
+  }) as HTMLInputElement;
+  idleDays.addEventListener("change", () => {
+    settings.worktreeIdleDays = Math.max(1, Math.min(365, Math.round(Number(idleDays.value)) || 14));
+    idleDays.value = String(settings.worktreeIdleDays);
+    void save();
+  });
+
   const screen = h("select", {}) as HTMLSelectElement;
   screen.append(
     h("option", { value: "primary", text: "Main display" }),
@@ -418,6 +442,16 @@ function generalSection(): HTMLElement {
     h("div", { class: "row" },
       h("label", { text: "Launch at startup" }),
       toggle(settings.autostart, (v) => { settings.autostart = v; void save(); }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: "Worktree folders" }),
+      roots,
+      h("span", { class: "hint", text: "comma-separated" }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: "Idle worktree" }),
+      idleDays,
+      h("span", { class: "hint", text: "days untouched and clean" }),
     ),
   );
 }
