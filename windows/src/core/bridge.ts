@@ -66,6 +66,9 @@ export const Bridge = {
 
   reposition: () => call<void>("reposition"),
 
+  /** Linux: expanded island = focusable popup under the top bar; else in the bar. */
+  setWindowMode: (popup: boolean, focus: boolean) => call<void>("set_window_mode", { popup, focus }),
+
   openUrl: (url: string) => call<void>("open_url", { url }),
 
   /** "Open terminal" → opens the folder in VS Code when `code` is on PATH. */

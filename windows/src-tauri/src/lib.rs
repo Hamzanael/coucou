@@ -124,9 +124,21 @@ fn set_island_rect(app: AppHandle, shared: State<Shared>, x: f64, y: f64, width:
 fn focus_window(app: AppHandle, focused: bool) {
     let Some(win) = island::window(&app) else { return };
     island::set_activating(&win, focused);
+    #[cfg(not(target_os = "linux"))]
     if focused {
         let _ = win.set_focus();
     }
+}
+
+/// Linux: bar (pill / compact) ⇄ popup (expanded). No-op elsewhere.
+#[tauri::command]
+fn set_window_mode(app: AppHandle, popup: bool, focus: bool) {
+    #[cfg(target_os = "linux")]
+    if let Some(win) = island::window(&app) {
+        island::set_popup(&win, popup, focus);
+    }
+    #[cfg(not(target_os = "linux"))]
+    let _ = (app, popup, focus);
 }
 
 #[tauri::command]
@@ -414,6 +426,7 @@ pub fn run() {
             set_collapsed,
             set_island_rect,
             focus_window,
+            set_window_mode,
             reposition,
             open_url,
             open_in_vscode,

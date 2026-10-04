@@ -86,6 +86,10 @@ export class Island {
    * mouse moves at the last position it saw — which must not count as hovering.
    */
   private pointerInside = true;
+  /** The next expand comes from a click, so the popup may take focus. */
+  private openedByClick = false;
+  /** Focus-out only means "clicked elsewhere" after the popup actually had focus. */
+  private hadFocus = false;
   private envelope = { w: 0, h: 0 };
   private homeCollapseAt: number | null = null;
 
@@ -123,6 +127,7 @@ export class Island {
     const actions: ViewActions = {
       setView: (v) => this.setView(v),
       collapse: () => this.collapse(),
+      close: () => this.close(),
       setFocus: (id) => {
         State.setFocus(id);
         Sound.play("blip");
@@ -277,6 +282,11 @@ export class Island {
     const prev = State.mode;
     if (mode === prev) return;
     State.mode = mode;
+    if (this.windowIsIsland && (mode === "expanded") !== (prev === "expanded")) {
+      this.hadFocus = false;
+      void Bridge.setWindowMode(mode === "expanded", mode === "expanded" && this.openedByClick);
+      this.openedByClick = false;
+    }
     if (mode === "expanded") Sound.play("open");
     if (prev === "expanded") {
       Sound.play("close");
@@ -338,6 +348,14 @@ export class Island {
     // back left it thinking the island was still open, and a click on the compact
     // island then did nothing — the island could never be reopened.
     this.fsm.forcePetit();
+  }
+
+  /** × button, Esc, click elsewhere: straight back to the clock pill. */
+  close() {
+    State.isPinned = false;
+    this.fsm.pinned = false;
+    if (State.clock) this.fsm.forceHidden();
+    else this.fsm.forcePetit();
   }
 
   /** Alert from the hook server: open on this view. Pinned alerts never auto-close. */
@@ -561,6 +579,7 @@ export class Island {
       if (State.mode !== "expanded") {
         // A click on the clock pill opens the island straight away.
         if (this.fsm.state === "hidden") this.fsm.mouseEntered();
+        this.openedByClick = true;
         this.fsm.click();
         return;
       }
@@ -571,7 +590,7 @@ export class Island {
     });
 
     window.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && State.mode === "expanded" && !State.isPinned) this.collapse();
+      if (e.key === "Escape" && State.mode === "expanded" && !State.isPinned) this.close();
       State.lastActivity = performance.now();
     });
 
@@ -595,6 +614,12 @@ export class Island {
   /** Linux: the window is sized to the island and the page tracks the mouse. */
   makeWindowTheIsland() {
     this.windowIsIsland = true;
+    void onEvent<boolean>("window-focus", (focused) => {
+      // The unmap/map of a mode switch fires focus-out before the popup ever had
+      // focus; only a focus that was gained and then lost means "clicked elsewhere".
+      if (focused) this.hadFocus = true;
+      else if (this.hadFocus && State.mode === "expanded" && !State.isPinned) this.close();
+    });
     this.useDomPointer();
     this.pushedRect = { x: -1, y: -1, w: -1, h: -1 };
     this.applyGeometry();

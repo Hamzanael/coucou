@@ -382,20 +382,77 @@ pub fn make_non_activating(win: &WebviewWindow) {
         }
         gtk::glib::Propagation::Proceed
     });
+
+    // WebKit consumes button presses before they bubble to the window, so the
+    // timestamp is taken on every widget, ahead of WebKit's own handler.
+    record_press_times(gtk_win.upcast_ref());
+    gtk_win.add_events(gtk::gdk::EventMask::FOCUS_CHANGE_MASK);
+    let page = win.clone();
+    gtk_win.connect_focus_in_event(move |_, _| {
+        let _ = page.emit("window-focus", true);
+        gtk::glib::Propagation::Proceed
+    });
+    let page = win.clone();
+    gtk_win.connect_focus_out_event(move |_, _| {
+        let _ = page.emit("window-focus", false);
+        gtk::glib::Propagation::Proceed
+    });
 }
 
-/// No WM ever focuses an override-redirect window, so the chat field gets the
-/// keyboard through a grab, released as soon as the chat is left.
+/// Last X timestamp of a button press on the island: GNOME only lets a window
+/// take focus for a user action it can date.
 #[cfg(target_os = "linux")]
-pub fn set_activating(win: &WebviewWindow, activating: bool) {
+static LAST_PRESS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+#[cfg(target_os = "linux")]
+fn record_press_times(widget: &gtk::Widget) {
+    use gtk::prelude::*;
+    widget.add_events(gtk::gdk::EventMask::BUTTON_PRESS_MASK);
+    widget.connect_button_press_event(|_, event| {
+        LAST_PRESS.store(event.time(), Ordering::Relaxed);
+        gtk::glib::Propagation::Proceed
+    });
+    if let Some(container) = widget.downcast_ref::<gtk::Container>() {
+        for child in container.children() {
+            record_press_times(&child);
+        }
+    }
+}
+
+/// Bar mode: override-redirect over the top bar, never focused. Popup mode: a
+/// managed, undecorated, keep-above window GNOME places under the top bar and
+/// can focus — the only way to type into it, see Esc, or learn of a click
+/// elsewhere (focus-out). Switching needs an unmap/map.
+#[cfg(target_os = "linux")]
+pub fn set_popup(win: &WebviewWindow, popup: bool, focus: bool) {
+    use gtk::gdk::WindowTypeHint;
     use gtk::prelude::*;
     let Ok(gtk_win) = win.gtk_window() else { return };
     let Some(gdk_win) = gtk_win.window() else { return };
-    let Some(seat) = gdk_win.display().default_seat() else { return };
-    if activating {
-        let _ = seat.grab(&gdk_win, gtk::gdk::SeatCapabilities::KEYBOARD, false, None, None, None);
-    } else {
-        seat.ungrab();
+    gtk_win.hide();
+    gdk_win.set_override_redirect(!popup);
+    gtk_win.set_type_hint(if popup { WindowTypeHint::Utility } else { WindowTypeHint::Normal });
+    gtk_win.set_keep_above(true);
+    gtk_win.set_skip_taskbar_hint(true);
+    gtk_win.set_skip_pager_hint(true);
+    gtk_win.set_accept_focus(popup);
+    gtk_win.set_focus_on_map(false);
+    gtk_win.show();
+    if popup && focus {
+        gtk_win.present_with_time(LAST_PRESS.load(Ordering::Relaxed));
+    }
+}
+
+/// The popup is a managed window GNOME can focus; activating it is asking for
+/// focus with the click that opened the chat.
+#[cfg(target_os = "linux")]
+pub fn set_activating(win: &WebviewWindow, activating: bool) {
+    use gtk::prelude::*;
+    if !activating {
+        return;
+    }
+    if let Ok(gtk_win) = win.gtk_window() {
+        gtk_win.present_with_time(LAST_PRESS.load(Ordering::Relaxed));
     }
 }
 

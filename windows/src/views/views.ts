@@ -16,6 +16,8 @@ import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations
 export interface ViewActions {
   setView(v: IslandViewName): void;
   collapse(): void;
+  /** Back to the clock pill (or compact without a clock) right away. */
+  close(): void;
   setFocus(id: string): void;
   openTerminal(): void;
   /** The ↗ button: opens whatever the focused pill points at. */
@@ -88,6 +90,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
 
   const gearBtn = h("button", { title: "Settings", onclick: () => go("settings") }, svg(ICONS.gear, 14));
   const soundBtn = h("button", { title: "Mute", onclick: () => actions.toggleSound() }, svg(ICONS.speakerOn, 14));
+  const closeBtn = h("button", { title: "Close", onclick: () => actions.close() }, svg(ICONS.xmark, 12));
 
   function go(v: IslandViewName) {
     actions.blip();
@@ -98,7 +101,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
     "div",
     { id: "header" },
     h("div", { class: "tabs" }, tabHome, tabChat, tabDrop, tabCalendar),
-    h("div", { class: "header-actions" }, gearBtn, soundBtn),
+    h("div", { class: "header-actions" }, gearBtn, soundBtn, closeBtn),
   );
 
   return {
