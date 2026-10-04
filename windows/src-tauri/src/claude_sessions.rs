@@ -18,6 +18,9 @@ pub struct LiveSession {
     pub waiting: bool,
     pub background: bool,
     pub updated_at: u64,
+    /// The tab title, last prompt and last reply, from the transcript.
+    #[serde(flatten)]
+    pub insight: crate::transcripts::Insight,
 }
 
 #[derive(Deserialize)]
@@ -42,6 +45,7 @@ pub fn parse(json: &str) -> Option<LiveSession> {
         waiting: false,
         background: false,
         updated_at: r.updated_at.unwrap_or(0),
+        insight: Default::default(),
     })
 }
 
@@ -76,6 +80,7 @@ pub fn parse_agents(json: &str) -> Option<Vec<LiveSession>> {
                     waiting: state == "blocked",
                     background: a.kind.as_deref() == Some("background"),
                     updated_at: a.started_at.unwrap_or(0),
+                    insight: Default::default(),
                 })
             })
             .collect(),
@@ -105,12 +110,34 @@ fn from_cli() -> Option<Vec<LiveSession>> {
     parse_agents(&String::from_utf8_lossy(&out.stdout))
 }
 
+/// A background agent parked for days is a leftover, not a running session.
+const STALE_BACKGROUND_MS: u64 = 3 * 86_400_000;
+
+/// What is really running: interactive sessions whose process is alive, and
+/// background agents that are working or were active in the last few days.
+pub fn current(list: Vec<LiveSession>, now_ms: u64) -> Vec<LiveSession> {
+    list.into_iter()
+        .filter(|s| {
+            if s.background {
+                s.busy || now_ms.saturating_sub(s.updated_at) < STALE_BACKGROUND_MS
+            } else {
+                s.pid == 0 || alive(s.pid)
+            }
+        })
+        .collect()
+}
+
 pub fn running() -> Vec<LiveSession> {
-    if let Some(mut list) = from_cli() {
-        list.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
-        return list;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    let mut list = current(from_cli().unwrap_or_else(from_records), now);
+    for s in &mut list {
+        s.insight = crate::transcripts::insight(&s.session_id, &s.cwd);
     }
-    from_records()
+    list.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+    list
 }
 
 fn from_records() -> Vec<LiveSession> {

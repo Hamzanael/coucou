@@ -18,7 +18,9 @@ import { buildWorktrees } from "./worktrees";
 function sessionCard(s: Session): HTMLElement {
   const agent = sessionAgent(s);
   const steps = h("div", { class: "dash-steps" });
-  for (const step of s.steps.slice(-4)) steps.append(h("div", { text: step }));
+  if (s.lastPrompt) steps.append(h("div", { text: `You: ${s.lastPrompt}` }));
+  if (s.lastReply) steps.append(h("div", { text: `Claude: ${s.lastReply}` }));
+  if (s.step && s.state !== "idle" && s.state !== "finished") steps.append(h("div", { text: `Now: ${s.step}` }));
   return h(
     "div",
     { class: "dash-session", style: `--accent:${agent.color}` },
@@ -26,8 +28,8 @@ function sessionCard(s: Session): HTMLElement {
     h(
       "div",
       { class: "dash-session-body" },
-      h("div", { class: "dash-session-head" }, h("b", { text: s.name || s.project }),
-        h("span", { text: `${s.name ? `${s.project} · ` : ""}${s.state} · ${timeAgo(s.updatedAt)}` })),
+      h("div", { class: "dash-session-head" }, h("b", { text: s.title || s.name || s.project }),
+        h("span", { text: `${s.project} · ${s.state} · ${timeAgo(s.updatedAt)}` })),
       steps,
       sessionButtons(s, agent.color),
     ),

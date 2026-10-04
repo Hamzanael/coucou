@@ -11,7 +11,7 @@ export const SESSION_PREFIX = "session:";
 export function sessionAgent(s: Session): AgentTask {
   return {
     id: `${SESSION_PREFIX}${s.id}`,
-    name: s.name || s.project,
+    name: s.title || s.name || s.project,
     color: colorForProject(s.project),
     state: s.state,
     stepIndex: Math.max(0, s.steps.length - 1),

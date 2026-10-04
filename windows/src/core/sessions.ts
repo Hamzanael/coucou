@@ -21,6 +21,10 @@ export interface Session {
   name?: string;
   /** The running `claude` process, for jumping to its terminal. */
   pid?: number;
+  /** From the transcript: the tab title, your last prompt, Claude's last reply. */
+  title?: string;
+  lastPrompt?: string;
+  lastReply?: string;
   project: string;
   cwd: string;
   state: SessionState;
@@ -37,6 +41,9 @@ export interface LiveSession {
   sessionId: string;
   name?: string;
   pid?: number;
+  title?: string | null;
+  lastPrompt?: string | null;
+  lastReply?: string | null;
   cwd: string;
   busy: boolean;
   /** A background agent blocked on the user. */
@@ -150,7 +157,8 @@ export class SessionStore {
       const s = this.sessions.get(l.sessionId);
       if (!s) {
         this.sessions.set(l.sessionId, {
-          id: l.sessionId, name: l.name || undefined, pid: l.pid || undefined, cwd: l.cwd, project: lastPathComponent(l.cwd) || "Session",
+          id: l.sessionId, name: l.name || undefined, pid: l.pid || undefined, cwd: l.cwd,
+          title: l.title ?? undefined, lastPrompt: l.lastPrompt ?? undefined, lastReply: l.lastReply ?? undefined, project: lastPathComponent(l.cwd) || "Session",
           state: l.waiting ? "question" : l.busy ? "working" : "idle", step: l.waiting ? "waiting for you" : "", steps: [], updatedAt: Math.min(l.updatedAt, now), live: true,
         });
         continue;
@@ -158,6 +166,9 @@ export class SessionStore {
       s.live = true;
       if (l.name) s.name = l.name;
       if (l.pid) s.pid = l.pid;
+      if (l.title) s.title = l.title;
+      if (l.lastPrompt) s.lastPrompt = l.lastPrompt;
+      if (l.lastReply) s.lastReply = l.lastReply;
       if (l.cwd) {
         s.cwd = l.cwd;
         s.project = lastPathComponent(l.cwd) || s.project;

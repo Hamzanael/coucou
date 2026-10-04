@@ -1960,3 +1960,38 @@ input[type="range"]::-webkit-slider-thumb {
   gap: 14px;
   font-size: 11px;
 }
+
+.session-lines {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  overflow: hidden;
+}
+
+.session-line {
+  display: flex;
+  gap: 6px;
+  font-size: 11px;
+  min-width: 0;
+}
+
+.session-line i {
+  flex: 0 0 38px;
+  font-style: normal;
+  color: var(--dim-3);
+}
+
+.session-line span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dim);
+}
+
+.session-line.now span {
+  color: var(--ink);
+}

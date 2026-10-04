@@ -88,8 +88,10 @@ export class Island {
    * mouse moves at the last position it saw — which must not count as hovering.
    */
   private pointerInside = true;
-  /** The next expand comes from a click, so the popup may take focus. */
-  private openedByClick = false;
+  /** The window is the focusable popup under the bar (else it hangs from the bar). */
+  private popup = false;
+  /** Opened from the keyboard shortcut: stays a popup so the keys work. */
+  private keyboardOpen = false;
   /** Focus-out only means "clicked elsewhere" after the popup actually had focus. */
   private hadFocus = false;
   private envelope = { w: 0, h: 0 };
@@ -294,11 +296,8 @@ export class Island {
     if (mode === prev) return;
     void Bridge.log(`diag t=${Math.round(performance.now())} mode ${prev}→${mode} vis=${document.visibilityState}`);
     State.mode = mode;
-    if (this.windowIsIsland && (mode === "expanded") !== (prev === "expanded")) {
-      this.hadFocus = false;
-      void Bridge.setWindowMode(mode === "expanded", mode === "expanded" && this.openedByClick);
-      this.openedByClick = false;
-    }
+    if (mode !== "expanded") this.keyboardOpen = false;
+    this.syncWindowMode();
     if (mode === "expanded") Sound.play("open");
     if (prev === "expanded") {
       Sound.play("close");
@@ -592,7 +591,6 @@ export class Island {
       if (State.mode !== "expanded") {
         // A click on the clock pill opens the island straight away.
         if (this.fsm.state === "hidden") this.fsm.mouseEntered();
-        this.openedByClick = true;
         this.fsm.click();
         return;
       }
@@ -680,12 +678,30 @@ export class Island {
 
   /** Global shortcut: open focused on the default view, or close if open. */
   toggleFromShortcut() {
-    if (State.mode === "expanded") {
+    if (State.mode === "expanded" && this.popup) {
       this.close();
       return;
     }
-    this.openedByClick = true;
-    this.fsm.forceHome();
+    this.keyboardOpen = true;
+    if (State.mode === "expanded") this.syncWindowMode();
+    else this.fsm.forceHome();
+  }
+
+  /**
+   * GNOME gives the keyboard only to windows under its top bar, and only windows
+   * that never take focus may sit over it. So the open island hangs from the bar
+   * like a notch, and drops under it just for typing: the Ask tab or the
+   * keyboard shortcut. Hanging from the bar, it closes soon after the pointer
+   * leaves, since a click elsewhere cannot be seen there.
+   */
+  private syncWindowMode() {
+    if (!this.windowIsIsland) return;
+    const want = State.mode === "expanded" && (this.keyboardOpen || State.view === "prompt");
+    this.fsm.homeToPetitDelay = want ? State.settings.autoCloseInterval : 1.5;
+    if (want === this.popup) return;
+    this.popup = want;
+    this.hadFocus = false;
+    void Bridge.setWindowMode(want, want);
   }
 
   /** Logical width of the window the island is centred in. */
@@ -1019,6 +1035,7 @@ export class Island {
     if (this.lastSyncedView !== State.view) {
       const wasChat = this.lastSyncedView === "prompt";
       this.lastSyncedView = State.view;
+      this.syncWindowMode();
       if (State.view === "prompt") {
         void Bridge.focusWindow(true);
         window.setTimeout(() => this.views.get("prompt")?.focus?.(), 120);

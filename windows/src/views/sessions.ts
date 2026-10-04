@@ -42,14 +42,16 @@ export function crew(sessions: Session[]): AgentTask[] {
 
 export const isSessionAgent = (task: AgentTask) => task.id.startsWith(SESSION_PREFIX);
 
+/** What the session is about and where it is: your ask, Claude's latest word, what it is doing. */
 export function renderSessionDetail(s: Session): HTMLElement {
   const color = sessionAgent(s).color;
-  const steps = h("div", { class: "session-steps" });
-  const recent = s.steps.slice(-4);
-  recent.forEach((step, i) => {
-    steps.append(h("div", { class: i === recent.length - 1 ? "session-step now" : "session-step", text: step }));
-  });
-  if (recent.length === 0) steps.append(h("div", { class: "session-step", text: STATE_LABEL[s.state] }));
+  const lines = h("div", { class: "session-lines" });
+  const line = (who: string, text: string | undefined, cls = "") => {
+    if (text) lines.append(h("div", { class: `session-line ${cls}` }, h("i", { text: who }), h("span", { text })));
+  };
+  line("You", s.lastPrompt);
+  line("Claude", s.lastReply);
+  if (s.state === "working" || s.state === "approval" || s.state === "question") line("Now", s.step, "now");
 
   return h(
     "div",
@@ -58,10 +60,10 @@ export function renderSessionDetail(s: Session): HTMLElement {
       "div",
       { class: "session-head" },
       dot(color, 7),
-      h("b", { text: s.name || s.project }),
-      h("span", { class: "session-state", text: `${s.name ? `${s.project} · ` : ""}${STATE_LABEL[s.state]} · ${timeAgo(s.updatedAt)}` }),
+      h("b", { text: s.title || s.name || s.project }),
+      h("span", { class: "session-state", text: `${s.project} · ${STATE_LABEL[s.state]} · ${timeAgo(s.updatedAt)}` }),
     ),
-    steps,
+    lines,
     sessionButtons(s, color),
   );
 }
