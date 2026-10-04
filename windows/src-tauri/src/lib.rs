@@ -14,6 +14,7 @@ mod integrations;
 mod island;
 mod log;
 mod pipe;
+mod pipelines;
 mod platform;
 mod secrets;
 mod settings;
