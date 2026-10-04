@@ -147,8 +147,11 @@ function handleHook(island: Island, payload: HookPayload) {
       State.updateTask(CLAUDE_ID, "finished");
       if (payload.message) State.appendStep(CLAUDE_ID, payload.message.slice(0, 60));
       Sound.play("finish");
-      if (focused) surface("finished", true);
-      else State.setPillBadge(CLAUDE_ID, "finished");
+      // A turn ending is news, not an alarm: with several sessions running the
+      // full island would pop open every few seconds. The session's row and the
+      // pill badge say it; only approvals, questions and errors open the island.
+      State.setPillBadge(CLAUDE_ID, "finished");
+      surface("finished", false);
       window.setTimeout(() => {
         State.updateTask(CLAUDE_ID, "idle");
         State.setPillBadge(CLAUDE_ID, null);
