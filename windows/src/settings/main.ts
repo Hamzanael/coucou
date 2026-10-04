@@ -421,6 +421,21 @@ function generalSection(): HTMLElement {
     void save();
   });
 
+  const pipelineRepos = h("input", {
+    type: "text",
+    value: settings.pipelineRepos.join(", "),
+    placeholder: "owner/repo, owner/other",
+    style: "width:260px",
+  }) as HTMLInputElement;
+  pipelineRepos.addEventListener("change", () => {
+    settings.pipelineRepos = pipelineRepos.value
+      .split(",")
+      .map((r) => r.trim())
+      .filter((r) => /^[\w.-]+\/[\w.-]+$/.test(r));
+    pipelineRepos.value = settings.pipelineRepos.join(", ");
+    void save();
+  });
+
   const screen = h("select", {}) as HTMLSelectElement;
   screen.append(
     h("option", { value: "primary", text: "Main display" }),
@@ -463,6 +478,11 @@ function generalSection(): HTMLElement {
       h("label", { text: "Idle worktree" }),
       idleDays,
       h("span", { class: "hint", text: "days untouched and clean" }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: "Pipelines" }),
+      pipelineRepos,
+      h("span", { class: "hint", text: "GitHub repos, uses the GitHub token" }),
     ),
     h("div", { class: "row" },
       h("label", { text: "Auto-remove" }),

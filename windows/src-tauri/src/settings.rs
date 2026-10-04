@@ -32,6 +32,9 @@ pub struct Settings {
     pub worktree_auto_clean: bool,
     #[serde(default = "default_worktree_auto_days")]
     pub worktree_auto_days: u64,
+    /// GitHub repos (`owner/name`) whose Actions runs the Pipelines view shows.
+    #[serde(default)]
+    pub pipeline_repos: Vec<String>,
 }
 
 fn default_worktree_auto_days() -> u64 {
@@ -71,6 +74,7 @@ impl Default for Settings {
             worktree_idle_days: default_worktree_idle_days(),
             worktree_auto_clean: false,
             worktree_auto_days: default_worktree_auto_days(),
+            pipeline_repos: Vec::new(),
         }
     }
 }

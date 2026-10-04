@@ -50,6 +50,24 @@ export interface HealthReport {
   worst: "ok" | "warn" | "bad";
 }
 
+export interface PipelineRun {
+  repo: string;
+  id: number;
+  workflow: string;
+  branch: string;
+  status: "queued" | "in_progress" | "completed" | string;
+  conclusion: string | null;
+  url: string;
+  createdAt: string;
+  prTitle: string | null;
+}
+
+export interface PipelinesUpdate {
+  rows: PipelineRun[];
+  newFailures: PipelineRun[];
+  error: string | null;
+}
+
 export interface CleanupItem {
   id: string;
   label: string;

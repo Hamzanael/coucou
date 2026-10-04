@@ -13,6 +13,7 @@ import { buildChoose, buildUpload, buildUploading } from "./upload";
 import { buildCalendar } from "./calendar";
 import { buildWorktrees } from "./worktrees";
 import { buildHealth } from "./health";
+import { buildPipelines } from "./pipelines";
 import { crew, isSessionAgent, liveSessions, renderSessionDetail, selectedSession } from "./sessions";
 import { SESSION_PREFIX } from "../core/crew";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
@@ -95,6 +96,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
   const tabCalendar = h("button", { class: "tab", title: "Calendar", onclick: () => go("calendar") }, svg(ICONS.calendar, 13));
   const tabWorktrees = h("button", { class: "tab", title: "Worktrees", onclick: () => go("worktrees") }, svg(ICONS.branch, 13));
   const tabHealth = h("button", { class: "tab", title: "Health", onclick: () => go("health") }, svg(ICONS.pulse, 13));
+  const tabPipelines = h("button", { class: "tab", title: "Pipelines", onclick: () => go("pipelines") }, svg(ICONS.pipeline, 13));
 
   const gearBtn = h("button", { title: "Settings", onclick: () => go("settings") }, svg(ICONS.gear, 14));
   const soundBtn = h("button", { title: "Mute", onclick: () => actions.toggleSound() }, svg(ICONS.speakerOn, 14));
@@ -108,7 +110,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
   const el = h(
     "div",
     { id: "header" },
-    h("div", { class: "tabs" }, tabHome, tabChat, tabDrop, tabCalendar, tabWorktrees, tabHealth),
+    h("div", { class: "tabs" }, tabHome, tabChat, tabDrop, tabCalendar, tabWorktrees, tabHealth, tabPipelines),
     h("div", { class: "header-actions" }, gearBtn, soundBtn, closeBtn),
   );
 
@@ -125,6 +127,8 @@ export function buildHeader(actions: ViewActions): ViewHost {
       tabWorktrees.style.display = State.clock ? "" : "none";
       tabHealth.classList.toggle("on", v === "health");
       tabHealth.style.display = State.clock ? "" : "none";
+      tabPipelines.classList.toggle("on", v === "pipelines");
+      tabPipelines.style.display = State.clock ? "" : "none";
       gearBtn.classList.toggle("on", v === "settings");
       clear(gearBtn);
       gearBtn.append(svg(v === "settings" ? ICONS.gearFill : ICONS.gear, 14));
@@ -552,6 +556,7 @@ export function buildViews(
   map.set("calendar", buildCalendar(() => actions.blip()));
   map.set("worktrees", buildWorktrees(() => actions.blip()));
   map.set("health", buildHealth(() => actions.blip()));
+  map.set("pipelines", buildPipelines());
   // Not in the Windows v1: sending a file by email, window attach + web result.
   map.set("mail", buildPlaceholder("Sending by email isn't in this version.", ""));
   map.set("searching", buildPlaceholder("Claude is searching…", ""));

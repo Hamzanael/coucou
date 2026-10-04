@@ -24,7 +24,8 @@ export type IslandViewName =
   | "greeting"
   | "calendar"
   | "worktrees"
-  | "health";
+  | "health"
+  | "pipelines";
 
 export type BotStateName =
   | "idle"
@@ -92,6 +93,7 @@ export const VIEW_LAYOUTS: Record<IslandViewName, ViewLayout> = {
   calendar: { height: 262, botX: 50, botY: 150, botDiameter: 44, agentMode: "none" },
   worktrees: { height: 262, botX: 50, botY: 150, botDiameter: 44, agentMode: "none" },
   health: { height: 262, botX: 50, botY: 150, botDiameter: 44, agentMode: "none" },
+  pipelines: { height: 262, botX: 50, botY: 150, botDiameter: 44, agentMode: "none" },
 };
 
 // The upload views above are only the fallback geometry. Once a file is actually

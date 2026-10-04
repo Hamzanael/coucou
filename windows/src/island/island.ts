@@ -619,7 +619,7 @@ export class Island {
   /** The header tabs in order, as the keyboard walks them. */
   private tabs(): IslandViewName[] {
     const base: IslandViewName[] = ["overview", "prompt", "upload"];
-    return State.clock ? [...base, "calendar", "worktrees", "health"] : base;
+    return State.clock ? [...base, "calendar", "worktrees", "health", "pipelines"] : base;
   }
 
   /**

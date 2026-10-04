@@ -2,7 +2,7 @@
 // pollers: a genuinely new item flips the pill to finished/error, badges it when
 // the pill isn't focused, plays a sound, and clears itself after 60 s.
 
-import { onEvent, Bridge, type HealthReport, type IntegrationUpdate } from "../core/bridge";
+import { onEvent, Bridge, type HealthReport, type IntegrationUpdate, type PipelinesUpdate } from "../core/bridge";
 import { Sound } from "../core/sound";
 import { State } from "../core/state";
 import type { Island } from "./island";
@@ -24,6 +24,17 @@ const HEALTH_COLOR = { ok: "#22C55E", warn: "#F5A524", bad: "#F4505E" } as const
 
 export function registerIntegrationHandlers(island: Island) {
   void onEvent<IntegrationUpdate>("integration", (update) => handle(island, update));
+  void onEvent<PipelinesUpdate>("pipelines", (update) => {
+    // A failed poll keeps the last good list instead of blanking the view.
+    State.pipelines = update.error && State.pipelines ? { ...State.pipelines, error: update.error } : update;
+    if (update.newFailures.length > 0) {
+      const github = State.tasks.find((t) => t.id === "integration_github");
+      if (github && State.focusId !== github.id) github.pillBadge = "error";
+      Sound.play("error");
+      island.reveal();
+    }
+    State.notify();
+  });
   void onEvent<HealthReport>("health", (report) => {
     const was = State.health?.worst ?? "ok";
     State.health = report;

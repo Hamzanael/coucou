@@ -2,7 +2,7 @@
 
 import type { BotEmoteName, BotStateName, IslandMode, IslandViewName } from "./layout";
 import type { EyeShape } from "../mochi/engine";
-import type { ClockFormat, HealthReport } from "./bridge";
+import type { ClockFormat, HealthReport, PipelinesUpdate } from "./bridge";
 import { SessionStore } from "./sessions";
 
 export type AgentSource = "claudeCode" | "n8n";
@@ -102,6 +102,8 @@ export interface Settings {
   /** Once a day, remove clean worktrees untouched for `worktreeAutoDays`. */
   worktreeAutoClean: boolean;
   worktreeAutoDays: number;
+  /** GitHub repos (`owner/name`) whose Actions runs the Pipelines view shows. */
+  pipelineRepos: string[];
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -120,6 +122,7 @@ export const DEFAULT_SETTINGS: Settings = {
   worktreeIdleDays: 14,
   worktreeAutoClean: false,
   worktreeAutoDays: 7,
+  pipelineRepos: [],
 };
 
 type Listener = () => void;
@@ -140,6 +143,9 @@ class AppState {
 
   isPinned = false;
   paused = false;
+
+  /** Latest GitHub Actions summary for the configured repos. */
+  pipelines: PipelinesUpdate | null = null;
 
   /** Latest storage / device health sample (Linux). */
   health: HealthReport | null = null;

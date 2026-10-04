@@ -21,6 +21,8 @@ export const ICONS = {
   branch: "M7 3a3 3 0 0 0-1 5.83v6.34A3 3 0 1 0 8 15.17V12.6c.9.6 2 1 3.2 1H14a3 3 0 0 0 3-3V8.83A3 3 0 1 0 15 8.83V10.6a1 1 0 0 1-1 1h-2.8A3.2 3.2 0 0 1 8 8.4V8.83A3 3 0 0 0 7 3z",
   // waveform.path.ecg
   pulse: "M3 12h4l2.5-6 4 12 2.5-6H21v2h-3.7l-3.8 9-4-12L8.3 14H3z",
+  // play.circle — a pipeline run
+  pipeline: "M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm0 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm-2 4.5 6 3.5-6 3.5v-7z",
   // calendar
   calendar: "M7 2h2v2h6V2h2v2h2.5A1.5 1.5 0 0 1 21 5.5v14a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 19.5v-14A1.5 1.5 0 0 1 4.5 4H7V2zM5 9v10h14V9H5z",
   // chevron.right

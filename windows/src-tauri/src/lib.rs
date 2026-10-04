@@ -566,6 +566,7 @@ pub fn run() {
             #[cfg(target_os = "linux")]
             claude_sessions::start(handle.clone());
             start_worktree_auto_clean(handle.clone());
+            pipelines::start(handle.clone());
             integrations::start(handle.clone());
             Ok(())
         })
