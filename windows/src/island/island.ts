@@ -607,6 +607,27 @@ export class Island {
       else if (State.mode === "expanded") this.navigate(e);
     });
 
+    // Wheel scrolling by hand: WebKitGTK does not reliably scroll the nested
+    // lists inside the island (crew, dashboard, worktrees…) on its own.
+    window.addEventListener(
+      "wheel",
+      (e) => {
+        let el = e.target instanceof Element ? e.target : null;
+        while (el && el !== document.body) {
+          if (el instanceof HTMLElement && el.scrollHeight > el.clientHeight + 1) {
+            const overflow = getComputedStyle(el).overflowY;
+            if (overflow === "auto" || overflow === "scroll") {
+              el.scrollTop += e.deltaMode === 1 ? e.deltaY * 32 : e.deltaY;
+              e.preventDefault();
+              return;
+            }
+          }
+          el = el.parentElement;
+        }
+      },
+      { passive: false },
+    );
+
     void onDragDrop((e) => this.onDragDrop(e));
 
     // Outside Tauri (plain browser) drive the cursor from DOM events so the

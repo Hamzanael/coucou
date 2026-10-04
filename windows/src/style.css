@@ -1504,7 +1504,6 @@ input[type="range"]::-webkit-slider-thumb {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  scrollbar-width: none;
 }
 
 .cal-event {
@@ -1568,7 +1567,6 @@ input[type="range"]::-webkit-slider-thumb {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  scrollbar-width: none;
 }
 
 .wt-row {
@@ -1618,7 +1616,6 @@ input[type="range"]::-webkit-slider-thumb {
   height: 100%;
   padding: 12px 16px 12px 96px;
   overflow-y: auto;
-  scrollbar-width: none;
 }
 
 .health-checks,
@@ -1682,7 +1679,6 @@ input[type="range"]::-webkit-slider-thumb {
 
 .overview .pills {
   overflow-y: auto;
-  scrollbar-width: none;
   align-content: safe center;
   padding: 8px;
 }
@@ -1764,7 +1760,6 @@ input[type="range"]::-webkit-slider-thumb {
   height: 100%;
   padding: 10px 16px 10px 96px;
   overflow-y: auto;
-  scrollbar-width: none;
 }
 
 .pipe-repo {
@@ -1873,7 +1868,6 @@ input[type="range"]::-webkit-slider-thumb {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  scrollbar-width: none;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -2095,4 +2089,45 @@ input[type="range"]::-webkit-slider-thumb {
 .overview .pill {
   min-width: 0;
   overflow: hidden;
+}
+
+/* The crew scrolls inside its card: the card is a column and the list takes
+   what is left, so it overflows (and scrolls) instead of growing past it. */
+.overview > .right > .card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.overview .pills {
+  flex: 1 1 0;
+  min-height: 0;
+  height: auto;
+  overflow-y: auto;
+}
+
+/* A slim visible scrollbar, so it is clear there is more below. */
+.overview .pills::-webkit-scrollbar,
+.dash-sessions::-webkit-scrollbar,
+.wt-list::-webkit-scrollbar,
+.pipes::-webkit-scrollbar,
+.health::-webkit-scrollbar {
+  width: 4px;
+}
+
+.overview .pills::-webkit-scrollbar-thumb,
+.dash-sessions::-webkit-scrollbar-thumb,
+.wt-list::-webkit-scrollbar-thumb,
+.pipes::-webkit-scrollbar-thumb,
+.health::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 4px;
+}
+
+.overview .pills::-webkit-scrollbar-track,
+.dash-sessions::-webkit-scrollbar-track,
+.wt-list::-webkit-scrollbar-track,
+.pipes::-webkit-scrollbar-track,
+.health::-webkit-scrollbar-track {
+  background: transparent;
 }

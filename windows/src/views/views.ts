@@ -164,6 +164,7 @@ function buildOverview(actions: ViewActions): ViewHost {
   );
   const left = card(null, leftBody, jump);
   const pills = h("div", { class: "pills" });
+
   const right = card(null, pills);
 
   const el = h("div", { class: "view overview" },
