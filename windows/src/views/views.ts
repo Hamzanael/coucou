@@ -16,12 +16,14 @@ import { buildHealth } from "./health";
 import { buildPipelines } from "./pipelines";
 import { buildDashboard } from "./dashboard";
 import { renderTeleport } from "./teleport";
-import { crew, isSessionAgent, liveSessions, renderSessionDetail, selectedSession, stateLabel } from "./sessions";
+import { crew, isSessionAgent, liveSessions, SessionCard, selectedSession, stateLabel } from "./sessions";
 import type { Session } from "../core/sessions";
 import { SESSION_PREFIX } from "../core/crew";
 
 /** focusSessionId value that shows the cloud-session chooser instead. */
 const CLOUD = "__cloud__";
+/** cardKey while the left card shows the (in-place) session card. */
+const SESSION_CARD = "__session__";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 
 export interface ViewActions {
@@ -173,6 +175,7 @@ function buildOverview(actions: ViewActions): ViewHost {
   );
 
   const crewRows = new Map<string, { el: HTMLElement; sig: string }>();
+  const sessionCard = new SessionCard();
   const cloudPill = h(
     "div",
     { class: "pill cloud-pill", "data-nav": true, tabindex: "0", title: "Pull a cloud session", onclick: () => actions.focusSession(CLOUD) },
@@ -230,13 +233,13 @@ function buildOverview(actions: ViewActions): ViewHost {
           cardKey = CLOUD;
         }
       } else if (shown) {
-        const key = `${shown.id}${shown.state}${shown.steps.join("|")}${Math.floor(shown.updatedAt / 60_000)}`;
-        if (mode !== "card" || cardKey !== key) {
+        if (mode !== "card" || cardKey !== SESSION_CARD) {
           clear(leftBody);
-          leftBody.append(renderSessionDetail(shown));
+          leftBody.append(sessionCard.el);
           mode = "card";
-          cardKey = key;
+          cardKey = SESSION_CARD;
         }
+        sessionCard.update(shown);
       } else if (task && sessionActive) {
         if (mode !== "ticker") {
           clear(leftBody);

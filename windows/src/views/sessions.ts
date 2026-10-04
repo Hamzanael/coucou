@@ -56,25 +56,62 @@ export const isSessionAgent = (task: AgentTask) => task.id.startsWith(SESSION_PR
 /** The short state shown next to a session in the crew list. */
 export const stateLabel = (state: Session["state"]) => STATE_LABEL[state];
 
-/** What the session is about and where it is: your ask, Claude's latest word, what it is doing. */
-export function renderSessionDetail(s: Session): HTMLElement {
-  const color = sessionAgent(s).color;
-  const lines = h("div", { class: "session-lines" });
-  const line = (who: string, text: string | undefined, cls = "") => {
-    if (text) lines.append(h("div", { class: `session-line ${cls}` }, h("i", { text: who }), h("span", { text })));
-  };
-  line("You", s.lastPrompt);
-  line("Claude", s.lastReply);
-  if (s.state === "working" || s.state === "approval" || s.state === "question") line("Now", s.step, "now");
+/**
+ * What the session is about and where it is: your ask, Claude's latest word,
+ * what it is doing. One card, updated in place — its buttons must stay
+ * clickable while the session works and its text changes every second.
+ */
+export class SessionCard {
+  readonly el: HTMLElement;
+  private dotEl = dot("#fff", 8);
+  private titleEl = h("b");
+  private metaEl = h("div", { class: "session-meta" });
+  private you = SessionCard.line("You");
+  private claude = SessionCard.line("Claude");
+  private now = SessionCard.line("Now", "now");
+  private buttons = h("div");
+  private buttonsKey = "";
 
-  return h(
-    "div",
-    { class: "session-card" },
-    h("div", { class: "session-head" }, dot(color, 8), h("b", { text: s.title || s.name || s.project })),
-    h("div", { class: "session-meta", text: `${s.project} · ${STATE_LABEL[s.state]} · ${timeAgo(s.updatedAt)}` }),
-    lines,
-    sessionButtons(s, color),
-  );
+  constructor() {
+    this.el = h(
+      "div",
+      { class: "session-card" },
+      h("div", { class: "session-head" }, this.dotEl, this.titleEl),
+      this.metaEl,
+      h("div", { class: "session-lines" }, this.you.row, this.claude.row, this.now.row),
+      this.buttons,
+    );
+  }
+
+  private static line(who: string, cls = "") {
+    const text = h("span");
+    return { row: h("div", { class: `session-line ${cls}` }, h("i", { text: who }), text), text };
+  }
+
+  private static set(line: { row: HTMLElement; text: HTMLElement }, value: string | undefined) {
+    line.row.style.display = value ? "" : "none";
+    if (line.text.textContent !== (value ?? "")) line.text.textContent = value ?? "";
+  }
+
+  update(s: Session) {
+    const color = sessionAgent(s).color;
+    this.dotEl.style.background = color;
+    const title = s.title || s.name || s.project;
+    if (this.titleEl.textContent !== title) this.titleEl.textContent = title;
+    const meta = `${s.project} · ${STATE_LABEL[s.state]} · ${timeAgo(s.updatedAt)}`;
+    if (this.metaEl.textContent !== meta) this.metaEl.textContent = meta;
+    SessionCard.set(this.you, s.lastPrompt);
+    SessionCard.set(this.claude, s.lastReply);
+    const busy = s.state === "working" || s.state === "approval" || s.state === "question";
+    SessionCard.set(this.now, busy ? s.step : undefined);
+    const key = `${s.id}|${s.pid ?? ""}|${s.cwd}|${color}`;
+    if (key !== this.buttonsKey) {
+      this.buttonsKey = key;
+      const fresh = sessionButtons(s, color);
+      this.buttons.replaceWith(fresh);
+      this.buttons = fresh;
+    }
+  }
 }
 
 /** Terminal (the Ghostty tab running it) and IntelliJ (its folder). */
