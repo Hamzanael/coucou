@@ -2081,3 +2081,18 @@ input[type="range"]::-webkit-slider-thumb {
   text-align: center;
   margin-left: 0;
 }
+
+/* Rows must shrink to the card, or long titles push the state out of view. */
+.overview > .right {
+  min-width: 0;
+}
+
+.overview .pills {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 8px 10px;
+}
+
+.overview .pill {
+  min-width: 0;
+  overflow: hidden;
+}
