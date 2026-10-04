@@ -91,6 +91,23 @@ describe("SessionStore", () => {
     expect(row.steps[0]).toBe("Run · c2");
   });
 
+  it("takes the session's real name and folder from Claude Code, not the hook's cwd", () => {
+    const s = new SessionStore();
+    s.apply(ev("PreToolUse", { cwd: "/home/u/IdeaProjects/coucou", tool_name: "Bash", tool_input: {} }), 1);
+    s.sync([{ sessionId: "s1", name: "ideaprojects-d2", cwd: "/home/u/IdeaProjects", busy: true, updatedAt: 1 }], 2);
+    expect(s.list(2)[0]).toMatchObject({ name: "ideaprojects-d2", project: "IdeaProjects", cwd: "/home/u/IdeaProjects" });
+    s.apply(ev("PreToolUse", { cwd: "/home/u/IdeaProjects/other", tool_name: "Bash", tool_input: {} }), 3);
+    expect(s.list(3)[0].project).toBe("IdeaProjects");
+  });
+
+  it("does not show system notifications as the user's prompt", () => {
+    const s = new SessionStore();
+    s.apply(ev("UserPromptSubmit", { prompt: "<task-notification> <task-id>b19</task-id> done" }), 1);
+    expect(s.list(1)[0].step).toBe("Background task update");
+    s.apply(ev("UserPromptSubmit", { prompt: "yes do" }), 2);
+    expect(s.list(2)[0].step).toBe("yes do");
+  });
+
   it("labels steps in English", () => {
     expect(stepLabel("Edit", { file_path: "/x/y/Main.kt" })).toBe("Edit · Main.kt");
     expect(stepLabel("Grep", { pattern: "foo" })).toBe("Search · foo");

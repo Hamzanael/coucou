@@ -167,6 +167,8 @@ mod tests {
         assert!(list[0].background && list[0].waiting && !list[0].busy);
         assert!(!list[1].background && list[1].busy && !list[1].waiting);
         assert_eq!(list[1].pid, 61134);
+        assert_eq!(list[0].name, "modee");
+        assert_eq!(list[1].name, "be");
         assert!(parse_agents("garbage").is_none());
     }
 
