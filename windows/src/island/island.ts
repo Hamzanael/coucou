@@ -281,6 +281,7 @@ export class Island {
   private setMode(mode: IslandMode) {
     const prev = State.mode;
     if (mode === prev) return;
+    void Bridge.log(`diag t=${Math.round(performance.now())} mode ${prev}→${mode} vis=${document.visibilityState}`);
     State.mode = mode;
     if (this.windowIsIsland && (mode === "expanded") !== (prev === "expanded")) {
       this.hadFocus = false;
@@ -574,6 +575,7 @@ export class Island {
     this.islandEl.addEventListener("mouseenter", wake);
 
     this.islandEl.addEventListener("mousedown", (e) => {
+      void Bridge.log(`diag t=${Math.round(performance.now())} mousedown mode=${State.mode} fsm=${this.fsm.state}`);
       Sound.resume();
       State.lastActivity = performance.now();
       if (State.mode !== "expanded") {
@@ -614,6 +616,8 @@ export class Island {
   /** Linux: the window is sized to the island and the page tracks the mouse. */
   makeWindowTheIsland() {
     this.windowIsIsland = true;
+    document.addEventListener("visibilitychange", () =>
+      void Bridge.log(`diag t=${Math.round(performance.now())} visibility ${document.visibilityState}`));
     void onEvent<boolean>("window-focus", (focused) => {
       // The unmap/map of a mode switch fires focus-out before the popup ever had
       // focus; only a focus that was gained and then lost means "clicked elsewhere".
@@ -761,6 +765,7 @@ export class Island {
   }
 
   private frame = (nowMs: number) => {
+    if (nowMs - this.lastFrame > 500) void Bridge.log(`diag t=${Math.round(nowMs)} frame gap ${Math.round(nowMs - this.lastFrame)}ms`);
     const dt = Math.min(0.05, (nowMs - this.lastFrame) / 1000);
     this.lastFrame = nowMs;
 
