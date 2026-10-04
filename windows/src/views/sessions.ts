@@ -42,6 +42,9 @@ export function crew(sessions: Session[]): AgentTask[] {
 
 export const isSessionAgent = (task: AgentTask) => task.id.startsWith(SESSION_PREFIX);
 
+/** The short state shown next to a session in the crew list. */
+export const stateLabel = (state: Session["state"]) => STATE_LABEL[state];
+
 /** What the session is about and where it is: your ask, Claude's latest word, what it is doing. */
 export function renderSessionDetail(s: Session): HTMLElement {
   const color = sessionAgent(s).color;
@@ -56,13 +59,8 @@ export function renderSessionDetail(s: Session): HTMLElement {
   return h(
     "div",
     { class: "session-card" },
-    h(
-      "div",
-      { class: "session-head" },
-      dot(color, 7),
-      h("b", { text: s.title || s.name || s.project }),
-      h("span", { class: "session-state", text: `${s.project} · ${STATE_LABEL[s.state]} · ${timeAgo(s.updatedAt)}` }),
-    ),
+    h("div", { class: "session-head" }, dot(color, 8), h("b", { text: s.title || s.name || s.project })),
+    h("div", { class: "session-meta", text: `${s.project} · ${STATE_LABEL[s.state]} · ${timeAgo(s.updatedAt)}` }),
     lines,
     sessionButtons(s, color),
   );

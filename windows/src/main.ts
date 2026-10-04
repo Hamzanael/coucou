@@ -5,7 +5,7 @@ import { Bridge, IS_TAURI, onEvent } from "./core/bridge";
 import { Sound } from "./core/sound";
 import { State, type Settings } from "./core/state";
 import { Island } from "./island/island";
-import { setDashboardSize } from "./core/layout";
+import { setDashboardSize, VIEW_LAYOUTS } from "./core/layout";
 import { dashboardSize } from "./core/crew";
 import { registerHookHandlers } from "./island/hooks";
 import { registerIntegrationHandlers, refreshConfigured } from "./island/integrations";
@@ -24,6 +24,8 @@ async function main() {
     State.clock = boot.clock ?? null;
     State.home = boot.home;
     setDashboardSize(dashboardSize(boot.screen.width, boot.screen.height));
+    // Room for the session card and the crew list.
+    if (State.clock) VIEW_LAYOUTS.overview.height = 230;
     if (boot.domPointer) island.makeWindowTheIsland();
   }
   island.applySettings();

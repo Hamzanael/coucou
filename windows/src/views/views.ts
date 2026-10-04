@@ -16,7 +16,8 @@ import { buildHealth } from "./health";
 import { buildPipelines } from "./pipelines";
 import { buildDashboard } from "./dashboard";
 import { renderTeleport } from "./teleport";
-import { crew, isSessionAgent, liveSessions, renderSessionDetail, selectedSession } from "./sessions";
+import { crew, isSessionAgent, liveSessions, renderSessionDetail, selectedSession, stateLabel } from "./sessions";
+import type { Session } from "../core/sessions";
 import { SESSION_PREFIX } from "../core/crew";
 
 /** focusSessionId value that shows the cloud-session chooser instead. */
@@ -311,6 +312,7 @@ function buildPill(task: AgentTask, actions: ViewActions): HTMLElement {
     },
     canvas,
     h("span", { class: "lbl", text: label }),
+    isSessionAgent(task) ? h("span", { class: "pill-state", text: stateLabel(task.state as Session["state"]) }) : null,
   );
   pill.style.borderColor = `${task.color}24`;
   pill.addEventListener("mouseenter", () => {
