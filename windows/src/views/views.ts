@@ -4,6 +4,7 @@
 
 import { h, svg, clear, dot } from "./dom";
 import { ICONS } from "./icons";
+import { Bridge } from "../core/bridge";
 import { Ticker } from "./ticker";
 import { State, type AgentTask } from "../core/state";
 import { washRGBA, type IslandViewName, type Wash } from "../core/layout";
@@ -340,6 +341,7 @@ function buildPill(task: AgentTask, actions: ViewActions): HTMLElement {
   );
   pill.style.borderColor = `${task.color}24`;
   pill.addEventListener("mouseenter", () => {
+    diagHover(task.name);
     pill.style.background = `${task.color}2e`;
     pill.style.borderColor = `${task.color}8c`;
     pill.style.boxShadow = `0 2px 10px ${task.color}59`;
@@ -361,6 +363,15 @@ function buildPill(task: AgentTask, actions: ViewActions): HTMLElement {
     pill.append(badge);
   }
   return pill;
+}
+
+let lastHoverLog = 0;
+/** Temporary: proves whether rows receive the pointer (one line per 3 s). */
+function diagHover(name: string) {
+  const now = Date.now();
+  if (now - lastHoverLog < 3000) return;
+  lastHoverLog = now;
+  void Bridge.log(`diag hover row ${name}`);
 }
 
 function lighten(hex: string, amount: number): string {

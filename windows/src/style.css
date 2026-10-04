@@ -2131,3 +2131,14 @@ input[type="range"]::-webkit-slider-thumb {
 .health::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* Rows answer the pointer even when the script-driven highlight does not. */
+.overview .pill,
+.overview .cloud-pill {
+  cursor: pointer;
+}
+
+.overview .pill:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.32);
+}
