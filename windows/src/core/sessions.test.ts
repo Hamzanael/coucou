@@ -82,6 +82,15 @@ describe("SessionStore", () => {
     expect(s.busiest(3)).toBe("approval");
   });
 
+  it("keeps the last 8 steps per session for the detail card", () => {
+    const s = new SessionStore();
+    for (let i = 0; i < 10; i++) s.apply(ev("PreToolUse", { tool_name: "Bash", tool_input: { command: `c${i}` } }), i);
+    const row = s.list(10)[0];
+    expect(row.steps).toHaveLength(8);
+    expect(row.steps[7]).toBe("Run · c9");
+    expect(row.steps[0]).toBe("Run · c2");
+  });
+
   it("labels steps in English", () => {
     expect(stepLabel("Edit", { file_path: "/x/y/Main.kt" })).toBe("Edit · Main.kt");
     expect(stepLabel("Grep", { pattern: "foo" })).toBe("Search · foo");

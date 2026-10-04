@@ -3,6 +3,7 @@
 mod calendar;
 mod claude;
 mod claude_sessions;
+mod cleanup;
 mod files;
 mod hooks;
 mod ide;
