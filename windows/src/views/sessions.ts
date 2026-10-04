@@ -28,9 +28,20 @@ const STATE_BADGE: Partial<Record<Session["state"], PillBadge>> = {
 
 export const liveSessions = () => State.sessions.list(Date.now());
 
-/** The session the left card shows: the one picked in the crew, else the latest. */
+let lastShown: string | null = null;
+
+/**
+ * The session the left card shows: the one picked in the crew, else the one it
+ * showed last (so it doesn't jump on every update), else the most active.
+ */
 export function selectedSession(sessions: Session[]): Session | null {
-  return sessions.find((s) => s.id === State.focusSessionId) ?? sessions[0] ?? null;
+  const picked =
+    sessions.find((s) => s.id === State.focusSessionId) ??
+    sessions.find((s) => s.id === lastShown) ??
+    [...sessions].sort((a, b) => b.updatedAt - a.updatedAt)[0] ??
+    null;
+  lastShown = picked?.id ?? null;
+  return picked;
 }
 
 /** Every session as an avatar, then the integration pills (not the Claude one). */

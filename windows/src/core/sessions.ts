@@ -32,6 +32,8 @@ export interface Session {
   /** Recent steps, oldest first, for the session's detail card. */
   steps: string[];
   updatedAt: number;
+  /** When it started: the list's order, so rows keep their place. */
+  since: number;
   /** Known to be running (from Claude Code's own records): exempt from the TTL. */
   live?: boolean;
 }
@@ -96,6 +98,7 @@ export class SessionStore {
     const cwd = p.cwd ?? "";
     const s: Session = this.sessions.get(id) ?? {
       id, cwd, project: lastPathComponent(cwd) || "Session", state: "thinking", step: "", steps: [], updatedAt: now,
+      since: now,
     };
     const before = s.step;
     s.updatedAt = now;
@@ -160,10 +163,13 @@ export class SessionStore {
           id: l.sessionId, name: l.name || undefined, pid: l.pid || undefined, cwd: l.cwd,
           title: l.title ?? undefined, lastPrompt: l.lastPrompt ?? undefined, lastReply: l.lastReply ?? undefined, project: lastPathComponent(l.cwd) || "Session",
           state: l.waiting ? "question" : l.busy ? "working" : "idle", step: l.waiting ? "waiting for you" : "", steps: [], updatedAt: Math.min(l.updatedAt, now), live: true,
+          since: l.updatedAt,
         });
         continue;
       }
       s.live = true;
+      // Claude Code knows when it really started; a hook-made row only guessed.
+      if (l.updatedAt > 0) s.since = l.updatedAt;
       if (l.name) s.name = l.name;
       if (l.pid) s.pid = l.pid;
       if (l.title) s.title = l.title;
@@ -184,7 +190,7 @@ export class SessionStore {
     for (const [id, s] of this.sessions) {
       if (!s.live && now - s.updatedAt > SESSION_TTL_MS) this.sessions.delete(id);
     }
-    return [...this.sessions.values()].sort((a, b) => b.updatedAt - a.updatedAt);
+    return [...this.sessions.values()].sort((a, b) => a.since - b.since || a.id.localeCompare(b.id));
   }
 
   busiest(now: number): SessionState | "idle" {

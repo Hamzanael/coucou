@@ -10,7 +10,7 @@ describe("SessionStore", () => {
     const s = new SessionStore();
     s.apply(ev("SessionStart"), 1);
     s.apply(ev("SessionStart", { session_id: "s2", cwd: "/x/analytickFE" }), 2);
-    expect(s.list(3).map((r) => r.project)).toEqual(["analytickFE", "analytickBE"]);
+    expect(s.list(3).map((r) => r.project)).toEqual(["analytickBE", "analytickFE"]);
   });
 
   it("tracks state and the latest step", () => {
@@ -61,9 +61,9 @@ describe("SessionStore", () => {
       20,
     );
     const rows = s.list(20);
-    expect(rows.map((r) => r.id)).toEqual(["s1", "q"]);
-    expect(rows[0]).toMatchObject({ state: "working", step: "Run · ls" });
-    expect(rows[1]).toMatchObject({ project: "msk", state: "idle" });
+    expect(rows.map((r) => r.id)).toEqual(["q", "s1"]);
+    expect(rows[1]).toMatchObject({ state: "working", step: "Run · ls" });
+    expect(rows[0]).toMatchObject({ project: "msk", state: "idle" });
   });
 
   it("a running session that went idle stops showing as working, but keeps approvals", () => {

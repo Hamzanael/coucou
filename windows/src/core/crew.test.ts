@@ -4,7 +4,7 @@ import type { Session } from "./sessions";
 
 const session = (over: Partial<Session> = {}): Session => ({
   id: "abc", project: "analytickBE", cwd: "/x/analytickBE", state: "working", step: "Run · ls",
-  steps: ["Run · ls"], updatedAt: 1, ...over,
+  steps: ["Run · ls"], updatedAt: 1, since: 1, ...over,
 });
 
 describe("sessionAgent", () => {
