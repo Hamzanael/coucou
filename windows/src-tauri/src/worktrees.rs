@@ -265,6 +265,22 @@ worktree /tmp/gone-wt\nHEAD 3333\ndetached\nprunable gitdir file points to non-e
         assert_eq!(pick_default_branch(None, &[]), "HEAD");
     }
 
+    fn stale(path: &str, reason: Reason, idle_days: Option<u64>) -> Stale {
+        Stale { repo: "/r".into(), path: path.into(), branch: None, reason, idle_days, size_kb: None }
+    }
+
+    #[test]
+    fn auto_clean_takes_only_idle_past_the_threshold_and_missing() {
+        let found = vec![
+            stale("/a", Reason::Idle, Some(7)),
+            stale("/b", Reason::Idle, Some(6)),
+            stale("/c", Reason::Merged, Some(30)),
+            stale("/d", Reason::UpstreamGone, Some(30)),
+            stale("/e", Reason::Missing, None),
+        ];
+        assert_eq!(auto_candidates(&found, 7), vec!["/a".to_string(), "/e".to_string()]);
+    }
+
     #[test]
     fn remove_refuses_paths_not_in_the_scan() {
         let r = remove(&[], &["/etc".to_string()]);
