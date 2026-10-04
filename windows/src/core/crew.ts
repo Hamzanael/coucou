@@ -28,3 +28,8 @@ export function nextTab<T extends string>(tabs: T[], current: string, dir: 1 | -
   if (i < 0) return tabs[0];
   return tabs[(i + dir + tabs.length) % tabs.length];
 }
+
+/** Expand mode: 1200×800 where the screen allows, else the screen minus margins. */
+export function dashboardSize(screenW: number, screenH: number): { w: number; h: number } {
+  return { w: Math.min(1200, screenW - 80), h: Math.min(800, screenH - 120) };
+}

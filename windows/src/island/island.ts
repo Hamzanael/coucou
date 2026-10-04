@@ -135,6 +135,7 @@ export class Island {
         State.setFocus("integration_claude");
         Sound.play("blip");
       },
+      toggleDashboard: () => this.toggleDashboard(),
       setFocus: (id) => {
         State.setFocus(id);
         Sound.play("blip");
@@ -600,7 +601,8 @@ export class Island {
 
     window.addEventListener("keydown", (e) => {
       State.lastActivity = performance.now();
-      if (e.key === "Escape" && State.mode === "expanded" && !State.isPinned) this.close();
+      if (e.key === "Escape" && State.view === "dashboard") this.toggleDashboard();
+      else if (e.key === "Escape" && State.mode === "expanded" && !State.isPinned) this.close();
       else if (State.mode === "expanded") this.navigate(e);
     });
 
@@ -651,10 +653,26 @@ export class Island {
     } else if ((e.key === " " || e.key === "Enter") && target?.matches("label[data-nav]")) {
       e.preventDefault();
       target.querySelector<HTMLInputElement>("input[type=checkbox]")?.click();
+    } else if ((e.key === "f" || e.key === "F") && State.clock) {
+      e.preventDefault();
+      this.toggleDashboard();
     } else if (e.key === "Enter" && target?.matches("div[data-nav]")) {
       e.preventDefault();
       target.click();
     }
+  }
+
+  private viewBeforeDashboard: IslandViewName = "overview";
+
+  /** Expand mode in and out; out returns to the view it was opened from. */
+  toggleDashboard() {
+    Sound.play("blip");
+    if (State.view === "dashboard") {
+      this.setView(this.viewBeforeDashboard);
+      return;
+    }
+    this.viewBeforeDashboard = State.view;
+    this.setView("dashboard");
   }
 
   /** Global shortcut: open focused on the default view, or close if open. */

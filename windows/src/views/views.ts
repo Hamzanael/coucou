@@ -14,8 +14,13 @@ import { buildCalendar } from "./calendar";
 import { buildWorktrees } from "./worktrees";
 import { buildHealth } from "./health";
 import { buildPipelines } from "./pipelines";
+import { buildDashboard } from "./dashboard";
+import { renderTeleport } from "./teleport";
 import { crew, isSessionAgent, liveSessions, renderSessionDetail, selectedSession } from "./sessions";
 import { SESSION_PREFIX } from "../core/crew";
+
+/** focusSessionId value that shows the cloud-session chooser instead. */
+const CLOUD = "__cloud__";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 
 export interface ViewActions {
@@ -25,6 +30,8 @@ export interface ViewActions {
   close(): void;
   /** Show this Claude Code session in the overview's left card. */
   focusSession(id: string): void;
+  /** Expand mode on / off. */
+  toggleDashboard(): void;
   setFocus(id: string): void;
   openTerminal(): void;
   /** The ↗ button: opens whatever the focused pill points at. */
@@ -101,6 +108,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
   const gearBtn = h("button", { title: "Settings", onclick: () => go("settings") }, svg(ICONS.gear, 14));
   const soundBtn = h("button", { title: "Mute", onclick: () => actions.toggleSound() }, svg(ICONS.speakerOn, 14));
   const closeBtn = h("button", { title: "Close", onclick: () => actions.close() }, svg(ICONS.xmark, 12));
+  const expandBtn = h("button", { title: "Expand (F)", onclick: () => actions.toggleDashboard() }, svg(ICONS.expand, 13));
 
   function go(v: IslandViewName) {
     actions.blip();
@@ -111,7 +119,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
     "div",
     { id: "header" },
     h("div", { class: "tabs" }, tabHome, tabChat, tabDrop, tabCalendar, tabWorktrees, tabHealth, tabPipelines),
-    h("div", { class: "header-actions" }, gearBtn, soundBtn, closeBtn),
+    h("div", { class: "header-actions" }, expandBtn, gearBtn, soundBtn, closeBtn),
   );
 
   return {
@@ -129,6 +137,8 @@ export function buildHeader(actions: ViewActions): ViewHost {
       tabHealth.style.display = State.clock ? "" : "none";
       tabPipelines.classList.toggle("on", v === "pipelines");
       tabPipelines.style.display = State.clock ? "" : "none";
+      expandBtn.classList.toggle("on", v === "dashboard");
+      expandBtn.style.display = State.clock ? "" : "none";
       gearBtn.classList.toggle("on", v === "settings");
       clear(gearBtn);
       gearBtn.append(svg(v === "settings" ? ICONS.gearFill : ICONS.gear, 14));
@@ -203,8 +213,16 @@ function buildOverview(actions: ViewActions): ViewHost {
         task?.id === "integration_claude" && (task.state !== "idle" || task.steps.length > 0);
 
       const sessions = liveSessions();
-      const shown = task?.id === "integration_claude" ? selectedSession(sessions) : null;
-      if (shown) {
+      const cloud = task?.id === "integration_claude" && State.focusSessionId === CLOUD;
+      const shown = task?.id === "integration_claude" && !cloud ? selectedSession(sessions) : null;
+      if (cloud) {
+        if (mode !== "card" || cardKey !== CLOUD) {
+          clear(leftBody);
+          leftBody.append(h("div", { class: "session-card" }, renderTeleport()));
+          mode = "card";
+          cardKey = CLOUD;
+        }
+      } else if (shown) {
         const key = `${shown.id}${shown.state}${shown.steps.join("|")}${Math.floor(shown.updatedAt / 60_000)}`;
         if (mode !== "card" || cardKey !== key) {
           clear(leftBody);
@@ -251,7 +269,7 @@ function buildOverview(actions: ViewActions): ViewHost {
 
       // The crew: every Claude Code session as an avatar, then the integrations.
       const members = crew(sessions);
-      const selectedId = shown ? `${SESSION_PREFIX}${shown.id}` : "";
+      const selectedId = cloud ? CLOUD : shown ? `${SESSION_PREFIX}${shown.id}` : "";
       const pillKey = members.map((t) => `${t.id}:${t.pillBadge ?? ""}:${t.color}`).join("|") + `#${selectedId}`;
       if (pillKey !== pillIds) {
         pillIds = pillKey;
@@ -261,6 +279,13 @@ function buildOverview(actions: ViewActions): ViewHost {
           if (t.id === selectedId) pill.classList.add("selected");
           pills.append(pill);
         }
+        const cloudPill = h(
+          "div",
+          { class: "pill cloud-pill", "data-nav": true, tabindex: "0", title: "Pull a cloud session", onclick: () => actions.focusSession(CLOUD) },
+          h("span", { class: "lbl", text: "☁  Cloud" }),
+        );
+        if (selectedId === CLOUD) cloudPill.classList.add("selected");
+        pills.append(cloudPill);
         pruneMiniBots();
       }
     },
@@ -557,6 +582,7 @@ export function buildViews(
   map.set("worktrees", buildWorktrees(() => actions.blip()));
   map.set("health", buildHealth(() => actions.blip()));
   map.set("pipelines", buildPipelines());
+  map.set("dashboard", buildDashboard(() => actions.blip()));
   // Not in the Windows v1: sending a file by email, window attach + web result.
   map.set("mail", buildPlaceholder("Sending by email isn't in this version.", ""));
   map.set("searching", buildPlaceholder("Claude is searching…", ""));

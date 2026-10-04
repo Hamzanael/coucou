@@ -30,6 +30,7 @@ export interface BootInfo {
   clock: ClockFormat | null;
   /** Track the mouse from the page's own events (Linux) instead of the cursor poll. */
   domPointer: boolean;
+  home: string;
 }
 
 export interface ClockFormat {
@@ -176,6 +177,9 @@ export const Bridge = {
   /** The desktop's calendar events overlapping [since, until), unix seconds. */
   calendarEvents: (since: number, until: number) =>
     call<CalendarEvent[]>("calendar_events", { since, until }),
+
+  /** Ghostty in `dir` running `claude --teleport` (with a copied session link). */
+  teleport: (dir: string, clipboard: string | null) => callOrThrow<string>("teleport", { dir, clipboard }),
 
   // ── Free up space ─────────────────────────────────────────────────────────
   cleanupScan: () => call<CleanupItem[]>("cleanup_scan"),

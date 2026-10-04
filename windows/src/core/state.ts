@@ -152,6 +152,9 @@ class AppState {
 
   /** One entry per live Claude Code session. */
   sessions = new SessionStore();
+  /** $HOME, for repo folders the island offers. */
+  home = "";
+
   /** The session picked in the crew; null shows the most recent one. */
   focusSessionId: string | null = null;
 

@@ -1820,3 +1820,137 @@ input[type="range"]::-webkit-slider-thumb {
   color: var(--red-text);
   font-size: 11px;
 }
+
+/* ── Expand mode (dashboard) ────────────────────────────────────────────── */
+
+.view.dash {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 10px;
+  padding: 2px 0 0;
+}
+
+.dash-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.dash-panel h3 {
+  margin: 0 0 6px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.dash-panel > .view {
+  position: relative;
+  inset: auto;
+  flex: 1;
+  min-height: 0;
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+/* The tabs leave room on the left for Mochi; the dashboard does not need it. */
+.dash .wt,
+.dash .health,
+.dash .pipes,
+.dash .cal {
+  padding-left: 14px;
+}
+
+.dash-crew {
+  grid-row: span 2;
+}
+
+.dash-sessions {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dash-session {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  border-left: 3px solid var(--accent);
+}
+
+.dash-session .mini {
+  margin-top: 4px;
+}
+
+.dash-session-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dash-session-head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 12.5px;
+}
+
+.dash-session-head span {
+  color: var(--dim);
+  font-size: 11px;
+}
+
+.dash-steps div {
+  font-size: 11px;
+  color: var(--dim-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-steps div:last-child {
+  color: var(--ink);
+}
+
+.tp {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  font-size: 12px;
+}
+
+.tp-dirs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tp-status {
+  color: var(--dim);
+  font-size: 11px;
+}
+
+.cloud-pill {
+  justify-content: center;
+}
+
+.cloud-pill .lbl {
+  margin-left: 0;
+}

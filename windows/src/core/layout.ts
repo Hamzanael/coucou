@@ -25,7 +25,8 @@ export type IslandViewName =
   | "calendar"
   | "worktrees"
   | "health"
-  | "pipelines";
+  | "pipelines"
+  | "dashboard";
 
 export type BotStateName =
   | "idle"
@@ -94,6 +95,8 @@ export const VIEW_LAYOUTS: Record<IslandViewName, ViewLayout> = {
   worktrees: { height: 262, botX: 50, botY: 150, botDiameter: 44, agentMode: "none" },
   health: { height: 262, botX: 50, botY: 150, botDiameter: 44, agentMode: "none" },
   pipelines: { height: 262, botX: 50, botY: 150, botDiameter: 44, agentMode: "none" },
+  // Expand mode is sized by the screen (setDashboardSize); the crew draws itself.
+  dashboard: { height: 800, botX: 0, botY: 0, botDiameter: 0, agentMode: "none" },
 };
 
 // The upload views above are only the fallback geometry. Once a file is actually
@@ -103,6 +106,13 @@ export const VIEW_LAYOUTS: Record<IslandViewName, ViewLayout> = {
 /** Chat view grows with the conversation — IslandContainer.chatPromptHeight. */
 export function chatPromptHeight(messageCount: number): number {
   return Math.min(300, 240 + messageCount * 40);
+}
+
+let dashboard = { w: 1200, h: 800 };
+
+export function setDashboardSize(size: { w: number; h: number }) {
+  dashboard = size;
+  VIEW_LAYOUTS.dashboard.height = size.h;
 }
 
 export function islandSize(
@@ -120,6 +130,7 @@ export function islandSize(
     case "compact":
       return { w: COMPACT_W, h: NOTCH_H };
     case "expanded": {
+      if (view === "dashboard") return { ...dashboard };
       const h = view === "prompt" ? chatPromptHeight(chatCount) : VIEW_LAYOUTS[view].height;
       return { w: EXPANDED_W, h };
     }

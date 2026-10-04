@@ -23,6 +23,8 @@ export const ICONS = {
   pulse: "M3 12h4l2.5-6 4 12 2.5-6H21v2h-3.7l-3.8 9-4-12L8.3 14H3z",
   // play.circle — a pipeline run
   pipeline: "M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm0 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm-2 4.5 6 3.5-6 3.5v-7z",
+  // arrow.up.left.and.arrow.down.right
+  expand: "M4 4h6v2H7.4l4 4-1.4 1.4-4-4V10H4V4zm16 16h-6v-2h2.6l-4-4 1.4-1.4 4 4V14h2v6z",
   // calendar
   calendar: "M7 2h2v2h6V2h2v2h2.5A1.5 1.5 0 0 1 21 5.5v14a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 19.5v-14A1.5 1.5 0 0 1 4.5 4H7V2zM5 9v10h14V9H5z",
   // chevron.right

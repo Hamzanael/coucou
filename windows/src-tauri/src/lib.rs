@@ -56,6 +56,7 @@ pub struct BootInfo {
     clock: Option<ClockFormat>,
     /// The page tracks the mouse from its own events instead of the cursor poll.
     dom_pointer: bool,
+    home: String,
 }
 
 #[tauri::command]
@@ -71,6 +72,7 @@ fn boot(app: AppHandle, shared: State<Shared>) -> BootInfo {
         hook_path: settings::hook_exe_path().to_string_lossy().to_string(),
         clock: cfg!(target_os = "linux").then(calendar::clock_format),
         dom_pointer: cfg!(target_os = "linux"),
+        home: platform::home().to_string_lossy().to_string(),
     }
 }
 
@@ -206,6 +208,14 @@ fn start_worktree_auto_clean(app: AppHandle) {
             }
         }
     });
+}
+
+/// "Pull a cloud session" into `dir` (a repo folder the island offered).
+#[tauri::command]
+fn teleport(dir: String, clipboard: Option<String>) -> Result<String, String> {
+    let result = teleport::launch(&dir, clipboard.as_deref());
+    log::line(format!("teleport into {dir}: {result:?}"));
+    result
 }
 
 #[tauri::command]
@@ -525,6 +535,7 @@ pub fn run() {
             worktrees_remove,
             cleanup_scan,
             cleanup_run,
+            teleport,
             quit_app,
             hooks_status,
             hooks_preview,
