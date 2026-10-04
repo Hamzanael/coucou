@@ -172,7 +172,12 @@ function buildOverview(actions: ViewActions): ViewHost {
     h("div", { class: "right" }, right),
   );
 
-  let pillIds = "";
+  const crewRows = new Map<string, { el: HTMLElement; sig: string }>();
+  const cloudPill = h(
+    "div",
+    { class: "pill cloud-pill", "data-nav": true, tabindex: "0", title: "Pull a cloud session", onclick: () => actions.focusSession(CLOUD) },
+    h("span", { class: "lbl", text: "☁  Cloud" }),
+  );
   let detailOpen = false;
   let lastFocus: string | null = null;
   let mode: "ticker" | "card" | null = null;
@@ -270,26 +275,41 @@ function buildOverview(actions: ViewActions): ViewHost {
       jump.style.display = detailOpen ? "none" : "";
 
       // The crew: every Claude Code session as an avatar, then the integrations.
+      // Rows are updated in place, never rebuilt: sessions change state every few
+      // seconds, and a rebuild under the pointer swallowed clicks and reset the
+      // scroll position.
       const members = crew(sessions);
       const selectedId = cloud ? CLOUD : shown ? `${SESSION_PREFIX}${shown.id}` : "";
-      const pillKey = members.map((t) => `${t.id}:${t.pillBadge ?? ""}:${t.color}`).join("|") + `#${selectedId}`;
-      if (pillKey !== pillIds) {
-        pillIds = pillKey;
-        clear(pills);
-        for (const t of members) {
-          const pill = buildPill(t, actions);
-          if (t.id === selectedId) pill.classList.add("selected");
-          pills.append(pill);
+      const wanted = new Set(members.map((t) => t.id));
+      for (const [id, row] of crewRows) {
+        if (!wanted.has(id)) {
+          row.el.remove();
+          crewRows.delete(id);
         }
-        const cloudPill = h(
-          "div",
-          { class: "pill cloud-pill", "data-nav": true, tabindex: "0", title: "Pull a cloud session", onclick: () => actions.focusSession(CLOUD) },
-          h("span", { class: "lbl", text: "☁  Cloud" }),
-        );
-        if (selectedId === CLOUD) cloudPill.classList.add("selected");
-        pills.append(cloudPill);
-        pruneMiniBots();
       }
+      for (const t of members) {
+        // The badge and colour live in the avatar: those few changes rebuild one row.
+        const sig = `${t.pillBadge ?? ""}:${t.color}`;
+        let row = crewRows.get(t.id);
+        if (!row || row.sig !== sig) {
+          const el = buildPill(t, actions);
+          row?.el.replaceWith(el);
+          row = { el, sig };
+          crewRows.set(t.id, row);
+        }
+        const lbl = row.el.querySelector(".lbl");
+        if (lbl && lbl.textContent !== t.name) lbl.textContent = t.name;
+        const state = row.el.querySelector(".pill-state");
+        const stateText = isSessionAgent(t) ? stateLabel(t.state as Session["state"]) : "";
+        if (state && state.textContent !== stateText) state.textContent = stateText;
+        row.el.classList.toggle("selected", t.id === selectedId);
+      }
+      const order = [...members.map((t) => crewRows.get(t.id)!.el), cloudPill];
+      order.forEach((el, i) => {
+        if (pills.children[i] !== el) pills.insertBefore(el, pills.children[i] ?? null);
+      });
+      cloudPill.classList.toggle("selected", selectedId === CLOUD);
+      pruneMiniBots();
     },
   };
 }
