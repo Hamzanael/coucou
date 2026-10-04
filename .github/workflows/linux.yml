@@ -46,7 +46,10 @@ jobs:
           restore-keys: linux-cargo-
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund
+
+      - name: Front-end tests
+        run: npm test
 
       - name: Check the tag and every version agree
         if: startsWith(github.ref, 'refs/tags/linux-v')
