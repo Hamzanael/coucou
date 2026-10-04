@@ -49,6 +49,39 @@ describe("SessionStore", () => {
     expect(new SessionStore().busiest(1)).toBe("idle");
   });
 
+  it("syncs with the running sessions: adds quiet ones, drops ended ones, keeps hook detail", () => {
+    const s = new SessionStore();
+    s.apply(ev("PreToolUse", { tool_name: "Bash", tool_input: { command: "ls" } }), 10);
+    s.apply(ev("PreToolUse", { session_id: "gone", tool_name: "Read", tool_input: {} }), 10);
+    s.sync(
+      [
+        { sessionId: "s1", cwd: "/home/u/IdeaProjects/analytickBE", busy: true, updatedAt: 5 },
+        { sessionId: "q", cwd: "/home/u/IdeaProjects/msk", busy: false, updatedAt: 3 },
+      ],
+      20,
+    );
+    const rows = s.list(20);
+    expect(rows.map((r) => r.id)).toEqual(["s1", "q"]);
+    expect(rows[0]).toMatchObject({ state: "working", step: "Run · ls" });
+    expect(rows[1]).toMatchObject({ project: "msk", state: "idle" });
+  });
+
+  it("a running session that went idle stops showing as working, but keeps approvals", () => {
+    const s = new SessionStore();
+    s.apply(ev("PreToolUse", { tool_name: "Bash", tool_input: {} }), 1);
+    s.apply(ev("PermissionRequest", { session_id: "p", tool_name: "Bash", tool_input: {} }), 1);
+    s.sync(
+      [
+        { sessionId: "s1", cwd: "/a", busy: false, updatedAt: 2 },
+        { sessionId: "p", cwd: "/b", busy: false, updatedAt: 2 },
+      ],
+      3,
+    );
+    expect(s.list(3).find((r) => r.id === "s1")?.state).toBe("idle");
+    expect(s.list(3).find((r) => r.id === "p")?.state).toBe("approval");
+    expect(s.busiest(3)).toBe("approval");
+  });
+
   it("labels steps in English", () => {
     expect(stepLabel("Edit", { file_path: "/x/y/Main.kt" })).toBe("Edit · Main.kt");
     expect(stepLabel("Grep", { pattern: "foo" })).toBe("Search · foo");
