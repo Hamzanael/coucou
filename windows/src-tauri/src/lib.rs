@@ -18,6 +18,7 @@ mod pipelines;
 mod platform;
 mod secrets;
 mod settings;
+mod teleport;
 mod tray;
 #[cfg(windows)]
 mod win_user;

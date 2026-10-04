@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nextTab, sessionAgent } from "./crew";
+import { dashboardSize, nextTab, sessionAgent } from "./crew";
 import type { Session } from "./sessions";
 
 const session = (over: Partial<Session> = {}): Session => ({
@@ -32,5 +32,13 @@ describe("nextTab", () => {
   });
   it("starts from the first tab when the current view is not a tab", () => {
     expect(nextTab([...tabs], "approval", 1)).toBe("overview");
+  });
+});
+
+describe("dashboardSize", () => {
+  it("is 1200×800 when the screen allows, never wider/taller than the screen minus margins", () => {
+    expect(dashboardSize(2560, 1440)).toEqual({ w: 1200, h: 800 });
+    expect(dashboardSize(1366, 768)).toEqual({ w: 1286, h: 648 });
+    expect(dashboardSize(1000, 600)).toEqual({ w: 920, h: 480 });
   });
 });
