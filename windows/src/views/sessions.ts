@@ -69,7 +69,7 @@ export class SessionCard {
   private you = SessionCard.line("You");
   private claude = SessionCard.line("Claude");
   private now = SessionCard.line("Now", "now");
-  private buttons = h("div");
+  private buttons: HTMLElement = h("div");
   private buttonsKey = "";
 
   constructor() {
