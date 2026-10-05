@@ -194,6 +194,21 @@ export class Island {
         State.setPillBadge("integration_claude", null);
         this.setView(State.defaultView());
       },
+      answerQuestion: (updatedInput) => {
+        const req = State.pendingApproval;
+        if (!req) return;
+        Sound.play("approve");
+        void Bridge.approvalAnswer(req.requestId, updatedInput);
+        this.settleApproval();
+      },
+      answerInTerminal: () => {
+        const req = State.pendingApproval;
+        if (!req) return;
+        Sound.play("blip");
+        // Coucou steps aside: Claude Code shows its own dialog right away.
+        void Bridge.approvalDecline(req.requestId);
+        this.settleApproval();
+      },
       toggleSound: () => {
         State.settings.soundEnabled = !State.settings.soundEnabled;
         Sound.setEnabled(State.settings.soundEnabled);
@@ -372,6 +387,16 @@ export class Island {
     // back left it thinking the island was still open, and a click on the compact
     // island then did nothing — the island could never be reopened.
     this.fsm.forcePetit();
+  }
+
+  /** The pending approval is dealt with: back to what the island was showing. */
+  private settleApproval() {
+    State.pendingApproval = null;
+    State.isPinned = false;
+    this.fsm.pinned = false;
+    State.updateTask("integration_claude", "working");
+    State.setPillBadge("integration_claude", null);
+    this.setView(State.defaultView());
   }
 
   /** × button, Esc, click elsewhere: straight back to the clock pill. */

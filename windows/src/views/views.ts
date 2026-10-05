@@ -20,6 +20,7 @@ import { renderTeleport } from "./teleport";
 import { crew, isSessionAgent, liveSessions, SessionCard, selectedSession, stateLabel } from "./sessions";
 import type { Session } from "../core/sessions";
 import { SESSION_PREFIX } from "../core/crew";
+import { answeredInput, askQuestions } from "../core/ask";
 import { followUp } from "../core/followup";
 
 const FLAG_LABEL = { waiting: "needs you", unfinished: "unfinished", stale: "stale" } as const;
@@ -47,6 +48,10 @@ export interface ViewActions {
   openTarget(): void;
   openUrl(url: string): void;
   decide(d: "allow" | "deny"): void;
+  /** Answer the pending AskUserQuestion with this tool input (answers added). */
+  answerQuestion(updatedInput: Record<string, unknown>): void;
+  /** Leave the pending question to Claude Code's dialog in the terminal. */
+  answerInTerminal(): void;
   toggleSound(): void;
   setVolume(v: number): void;
   setAutoClose(seconds: number): void;
@@ -438,6 +443,37 @@ function buildEmpty(actions: ViewActions): ViewHost {
 
 // ── Approval ──────────────────────────────────────────────────────────────────
 
+/** AskUserQuestion: the questions with their options; answers go back to Claude Code. */
+function buildQuestionCard(actions: ViewActions, input: Record<string, unknown>): HTMLElement {
+  const questions = askQuestions(input);
+  const picks: Record<string, string[]> = {};
+  const send = btn("Send answer", "primary", () => {
+    const answered = answeredInput(input, picks);
+    if (answered) actions.answerQuestion(answered);
+  });
+  const refresh = () => send.classList.toggle("disabled", !answeredInput(input, picks));
+  const body = h("div", { class: "ask" });
+  for (const q of questions) {
+    const chips = h("div", { class: "ask-options" });
+    for (const o of q.options) {
+      const chip = h("button", { class: "reply-chip ask-chip", "data-nav": true, text: o.label, title: o.description ?? "" });
+      chip.addEventListener("click", () => {
+        const now = picks[q.question] ?? [];
+        picks[q.question] = q.multiSelect
+          ? now.includes(o.label) ? now.filter((l) => l !== o.label) : [...now, o.label]
+          : [o.label];
+        for (const c of Array.from(chips.children)) c.classList.toggle("on", picks[q.question].includes((c as HTMLElement).textContent ?? ""));
+        refresh();
+      });
+      chips.append(chip);
+    }
+    body.append(h("div", { class: "ask-q", text: q.question }), chips);
+  }
+  body.append(h("div", { class: "actions" }, btn("Answer in terminal", "secondary", () => actions.answerInTerminal()), send));
+  refresh();
+  return body;
+}
+
 function buildApproval(actions: ViewActions): ViewHost {
   const who = h("div");
   const code = h("div", { class: "code" });
@@ -448,7 +484,7 @@ function buildApproval(actions: ViewActions): ViewHost {
     el,
     sync() {
       clear(who);
-      who.append(agentWho(State.focusTask, "needs permission"));
+      who.append(agentWho(State.focusTask, State.pendingApproval?.tool === "AskUserQuestion" ? "asks you" : "needs permission"));
       // The whole point of approving here rather than in the terminal: this line
       // is the command, the file path or the URL being authorised, not just the
       // name of the tool asking.
@@ -456,9 +492,18 @@ function buildApproval(actions: ViewActions): ViewHost {
       // Two buttons, built once. Rebuilding them between a mouse-down and a
       // mouse-up would swallow the click, and there is nothing left to vary:
       // "Always" is gone until the remembered-rules list exists to back it.
-      if (rowKey === "built") return;
-      rowKey = "built";
+      // A question gets its own card, built once per request.
+      const req = State.pendingApproval;
+      const key = req?.tool === "AskUserQuestion" ? `ask:${req.requestId}` : "built";
+      code.style.display = key === "built" ? "" : "none";
+      row.style.display = key === "built" ? "" : "block";
+      if (rowKey === key) return;
+      rowKey = key;
       clear(row);
+      if (req && key !== "built") {
+        row.append(buildQuestionCard(actions, req.input));
+        return;
+      }
       row.append(
         btn("Deny", "secondary", () => actions.decide("deny"), "N"),
         btn("Allow", "primary", () => actions.decide("allow"), "Y"),

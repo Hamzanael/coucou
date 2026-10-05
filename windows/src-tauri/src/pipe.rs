@@ -288,6 +288,18 @@ pub fn decline(app: &AppHandle, request_id: &str) {
     send(app, request_id, Reply::Decline, false);
 }
 
+/// An allow that also rewrites the tool's input — answering an AskUserQuestion
+/// with the options picked on the island. One JSON line; coucou-hook turns it
+/// into Claude Code's decision.
+pub fn answer_with_input(app: &AppHandle, request_id: &str, updated_input: serde_json::Value) {
+    if !updated_input.is_object() {
+        return;
+    }
+    let line = serde_json::json!({ "behavior": "allow", "updatedInput": updated_input }).to_string();
+    log::line(format!("decision id={request_id} allow with answers"));
+    send(app, request_id, Reply::Decision(line), false);
+}
+
 /// Called by the island's Allow / Deny buttons. Only ever a bare word: turning
 /// it into Claude Code's JSON is coucou-hook's job.
 pub fn answer(app: &AppHandle, request_id: &str, decision: &str) {

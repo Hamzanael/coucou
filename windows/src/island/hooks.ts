@@ -9,6 +9,7 @@ import { State } from "../core/state";
 import type { Island } from "./island";
 import { stepLabel, type HookPayload, type LiveSession } from "../core/sessions";
 import { followUp, nudgeCandidates } from "../core/followup";
+import { VIEW_LAYOUTS } from "../core/layout";
 
 const CLAUDE_ID = "integration_claude";
 
@@ -241,7 +242,10 @@ function handleHook(island: Island, payload: HookPayload) {
         sessionId: payload.session_id ?? "",
         tool,
         command: approvalTarget(tool, input),
+        input,
       };
+      // A question with its options needs more room than a one-line target.
+      VIEW_LAYOUTS.approval.height = tool === "AskUserQuestion" ? 270 : 160;
       // The relay's short ack window closes in 800 ms; everything below this
       // line is synchronous, so the card really is up by the time it lands.
       if (requestId) void Bridge.approvalAck(requestId);

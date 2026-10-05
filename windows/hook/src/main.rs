@@ -147,7 +147,23 @@ fn main() {
 /// nothing at all rather than guessing — silence is the safe answer.
 /// See https://code.claude.com/docs/en/hooks
 fn decision_json(decision: &str) -> Option<String> {
-    let behavior = match decision.trim() {
+    let decision = decision.trim();
+    if decision.starts_with('{') {
+        // An allow carrying the tool's updated input: how a question asked with
+        // AskUserQuestion is answered from the island (its `answers` field).
+        let v: serde_json::Value = serde_json::from_str(decision).ok()?;
+        if v.get("behavior")?.as_str()? != "allow" || !v.get("updatedInput")?.is_object() {
+            return None;
+        }
+        let out = serde_json::json!({
+            "hookSpecificOutput": {
+                "hookEventName": "PermissionRequest",
+                "decision": { "behavior": "allow", "updatedInput": v["updatedInput"] },
+            }
+        });
+        return Some(out.to_string());
+    }
+    let behavior = match decision {
         // "always" still answers a plain allow; remembering it is the island's
         // business, not Claude Code's.
         "allow" | "always" => r#"{"behavior":"allow"}"#.to_string(),

@@ -28,6 +28,8 @@ export interface ApprovalInfo {
   sessionId: string;
   tool: string;
   command: string;
+  /** The tool's input, for the cards that need more than a one-line target. */
+  input: Record<string, unknown>;
 }
 
 export interface ChatMessage {

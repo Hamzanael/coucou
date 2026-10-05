@@ -388,6 +388,12 @@ fn approval_decision(app: AppHandle, request_id: String, decision: String) {
     pipe::answer(&app, &request_id, &decision);
 }
 
+/// Answers an AskUserQuestion: allow, with the tool input plus the picked answers.
+#[tauri::command]
+fn approval_answer(app: AppHandle, request_id: String, updated_input: serde_json::Value) {
+    pipe::answer_with_input(&app, &request_id, updated_input);
+}
+
 /// The island has the card on screen, so the long wait for a human may begin.
 /// Until this arrives the relay only waits a few hundred milliseconds, which is
 /// what stops a paused or unresponsive island from freezing Claude Code.
@@ -579,6 +585,7 @@ pub fn run() {
             hooks_preview,
             hooks_apply,
             approval_decision,
+            approval_answer,
             approval_ack,
             approval_decline,
             log_line,
