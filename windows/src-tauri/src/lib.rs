@@ -7,6 +7,7 @@ mod cleanup;
 mod files;
 mod hooks;
 mod ide;
+mod inbox;
 mod worktrees;
 #[cfg(target_os = "linux")]
 mod health;
