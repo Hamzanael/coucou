@@ -26,7 +26,7 @@ async function main() {
     setDashboardSize(dashboardSize(boot.screen.width, boot.screen.height));
     // Room for the session card and the crew list.
     if (State.clock) {
-      VIEW_LAYOUTS.overview.height = 230;
+      VIEW_LAYOUTS.overview.height = 262;
       setExpandedWidth(780);
     }
     if (boot.domPointer) island.makeWindowTheIsland();
