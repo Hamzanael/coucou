@@ -367,7 +367,13 @@ function buildPill(task: AgentTask, actions: ViewActions): HTMLElement {
 
   setPillBadge(pill, task.pillBadge ?? null);
   pill.addEventListener("mousedown", () => diagClick("press", task.name));
-  pill.addEventListener("click", () => diagClick("click", task.name));
+  pill.addEventListener("click", () => {
+    diagClick("click", task.name);
+    // Visible proof of the click, even when nothing else on screen changes.
+    pill.classList.remove("flash");
+    void pill.offsetWidth;
+    pill.classList.add("flash");
+  });
   return pill;
 }
 

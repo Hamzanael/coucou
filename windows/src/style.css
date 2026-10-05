@@ -2201,3 +2201,21 @@ input[type="range"]::-webkit-slider-thumb {
   font-size: 11.5px;
   outline: none;
 }
+
+/* A clicked crew row flashes, so a click always shows. */
+.overview .pill:active {
+  transform: scale(0.97);
+}
+
+.overview .pill.flash {
+  animation: pill-flash 0.45s ease-out;
+}
+
+@keyframes pill-flash {
+  0% {
+    background: rgba(255, 255, 255, 0.22);
+  }
+  100% {
+    background: rgba(255, 255, 255, 0.07);
+  }
+}

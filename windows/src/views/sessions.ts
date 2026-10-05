@@ -150,6 +150,9 @@ export class SessionCard {
       this.input.style.display = "none";
     }
     this.session = s;
+    if (terminalStatus && this.status.textContent !== terminalStatus && !this.status.textContent?.startsWith("Sen")) {
+      this.status.textContent = terminalStatus;
+    }
     // A message can't reach an open dialog: send them to the terminal instead.
     this.dialogHint.style.display = s.dialog ? "" : "none";
     this.replies.style.display = s.dialog || !s.pid ? "none" : "";
@@ -206,12 +209,21 @@ export function sessionButtons(s: Session, color: string): HTMLElement {
   return row;
 }
 
+/** Where the last "go to its terminal" got to, for the session card to show. */
+export let terminalStatus = "";
+
 export async function goToTerminal(s: Session) {
   if (!s.pid) return;
+  terminalStatus = "Opening its terminal…";
+  State.notify();
   try {
     await Bridge.focusTerminal(s.pid);
+    terminalStatus = "Opened its terminal ✓";
   } catch (err) {
-    State.noteMessage = String(err).replace(/^Error:\s*/, "");
-    void Bridge.log(`terminal: ${State.noteMessage}`);
+    const why = String(err).replace(/^Error:\s*/, "");
+    // Ghostty stays silent about a tab that is already in front.
+    terminalStatus = why.startsWith("Ghostty did not answer") ? "Its terminal is already in front" : why;
+    void Bridge.log(`terminal: ${why}`);
   }
+  State.notify();
 }
