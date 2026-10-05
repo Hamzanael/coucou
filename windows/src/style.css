@@ -2142,3 +2142,16 @@ input[type="range"]::-webkit-slider-thumb {
   background: rgba(255, 255, 255, 0.09);
   border-color: rgba(255, 255, 255, 0.32);
 }
+
+/* Follow-up flags in the crew list. */
+.pill-state.flag-waiting {
+  color: var(--amber);
+}
+
+.pill-state.flag-unfinished {
+  color: var(--red-text);
+}
+
+.pill-state.flag-stale {
+  color: #c9a0ff;
+}

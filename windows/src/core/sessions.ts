@@ -36,6 +36,8 @@ export interface Session {
   since: number;
   /** Known to be running (from Claude Code's own records): exempt from the TTL. */
   live?: boolean;
+  /** Its last turn stopped mid-work, without a Stop event. */
+  interrupted?: boolean;
 }
 
 /** A running session as Rust reads it from ~/.claude/sessions. */
@@ -102,6 +104,7 @@ export class SessionStore {
     };
     const before = s.step;
     s.updatedAt = now;
+    s.interrupted = false;
     if (cwd && !s.cwd) {
       s.cwd = cwd;
       s.project = lastPathComponent(cwd);
@@ -114,10 +117,18 @@ export class SessionStore {
         s.step = prompt.startsWith("<") ? "Background task update" : prompt.slice(0, 60);
         break;
       }
-      case "PreToolUse":
+      case "PreToolUse": {
+        if (p.tool_name === "AskUserQuestion") {
+          // A multiple-choice dialog: Claude waits on you in the terminal.
+          const questions = (p.tool_input?.questions ?? []) as { question?: string }[];
+          s.state = "question";
+          s.step = questions[0]?.question?.slice(0, 120) || "Question in the terminal";
+          break;
+        }
         s.state = "working";
         s.step = stepLabel(p.tool_name ?? "Tool", p.tool_input ?? {});
         break;
+      }
       case "PostToolUse":
         if (s.state !== "approval") s.state = "working";
         break;
@@ -180,7 +191,11 @@ export class SessionStore {
         s.project = lastPathComponent(l.cwd) || s.project;
       }
       if (l.waiting && s.state !== "approval") s.state = "question";
-      else if (!l.busy && (s.state === "working" || s.state === "thinking")) s.state = "idle";
+      else if (!l.busy && (s.state === "working" || s.state === "thinking")) {
+        // Claude Code says it is idle, yet no Stop came: the turn was cut short.
+        s.state = "idle";
+        s.interrupted = true;
+      }
       if (l.busy && s.state === "idle") s.state = "working";
       s.updatedAt = Math.max(s.updatedAt, Math.min(l.updatedAt, now));
     }

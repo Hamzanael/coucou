@@ -4,6 +4,7 @@
 
 import { Bridge } from "../core/bridge";
 import { SESSION_PREFIX, sessionAgent } from "../core/crew";
+import { followUp } from "../core/followup";
 import { State, type AgentTask, type PillBadge } from "../core/state";
 import type { Session } from "../core/sessions";
 import { timeAgo } from "./integrations";
@@ -69,6 +70,7 @@ export class SessionCard {
   private you = SessionCard.line("You");
   private claude = SessionCard.line("Claude");
   private now = SessionCard.line("Now", "now");
+  private nowLabel = this.now.row.firstElementChild as HTMLElement;
   private buttons: HTMLElement = h("div");
   private buttonsKey = "";
 
@@ -98,11 +100,16 @@ export class SessionCard {
     this.dotEl.style.background = color;
     const title = s.title || s.name || s.project;
     if (this.titleEl.textContent !== title) this.titleEl.textContent = title;
-    const meta = `${s.project} · ${STATE_LABEL[s.state]} · ${timeAgo(s.updatedAt)}`;
+    const flag = followUp(s, Date.now());
+    const flagText = flag === "waiting" ? " · needs you" : flag ? ` · ${flag}` : "";
+    const meta = `${s.project} · ${STATE_LABEL[s.state]}${flagText} · ${timeAgo(s.updatedAt)}`;
     if (this.metaEl.textContent !== meta) this.metaEl.textContent = meta;
     SessionCard.set(this.you, s.lastPrompt);
     SessionCard.set(this.claude, s.lastReply);
     const busy = s.state === "working" || s.state === "approval" || s.state === "question";
+    // A pending question reads as what Claude asks you, not what it is doing.
+    const asks = s.state === "question" || s.state === "approval";
+    if (this.nowLabel.textContent !== (asks ? "Asks" : "Now")) this.nowLabel.textContent = asks ? "Asks" : "Now";
     SessionCard.set(this.now, busy ? s.step : undefined);
     const key = `${s.id}|${s.pid ?? ""}|${s.cwd}|${color}`;
     if (key !== this.buttonsKey) {

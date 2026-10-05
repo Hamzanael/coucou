@@ -20,6 +20,9 @@ import { renderTeleport } from "./teleport";
 import { crew, isSessionAgent, liveSessions, SessionCard, selectedSession, stateLabel } from "./sessions";
 import type { Session } from "../core/sessions";
 import { SESSION_PREFIX } from "../core/crew";
+import { followUp } from "../core/followup";
+
+const FLAG_LABEL = { waiting: "needs you", unfinished: "unfinished", stale: "stale" } as const;
 
 /** focusSessionId value that shows the cloud-session chooser instead. */
 const CLOUD = "__cloud__";
@@ -283,6 +286,8 @@ function buildOverview(actions: ViewActions): ViewHost {
       // seconds, and a rebuild under the pointer swallowed clicks and reset the
       // scroll position.
       const members = crew(sessions);
+      const now = Date.now();
+      const bySession = new Map(sessions.map((s) => [`${SESSION_PREFIX}${s.id}`, s]));
       const selectedId = cloud ? CLOUD : shown ? `${SESSION_PREFIX}${shown.id}` : "";
       const wanted = new Set(members.map((t) => t.id));
       for (const [id, row] of crewRows) {
@@ -304,8 +309,11 @@ function buildOverview(actions: ViewActions): ViewHost {
         const lbl = row.el.querySelector(".lbl");
         if (lbl && lbl.textContent !== t.name) lbl.textContent = t.name;
         const state = row.el.querySelector(".pill-state");
-        const stateText = isSessionAgent(t) ? stateLabel(t.state as Session["state"]) : "";
+        const session = bySession.get(t.id);
+        const flag = session ? followUp(session, now) : null;
+        const stateText = flag ? FLAG_LABEL[flag] : isSessionAgent(t) ? stateLabel(t.state as Session["state"]) : "";
         if (state && state.textContent !== stateText) state.textContent = stateText;
+        if (state) state.className = flag ? `pill-state flag-${flag}` : "pill-state";
         row.el.classList.toggle("selected", t.id === selectedId);
       }
       const order = [...members.map((t) => crewRows.get(t.id)!.el), cloudPill];

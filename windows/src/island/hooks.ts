@@ -8,6 +8,7 @@ import { Sound } from "../core/sound";
 import { State } from "../core/state";
 import type { Island } from "./island";
 import { stepLabel, type HookPayload, type LiveSession } from "../core/sessions";
+import { followUp } from "../core/followup";
 
 const CLAUDE_ID = "integration_claude";
 
@@ -69,11 +70,30 @@ export function registerHookHandlers(island: Island) {
   const sync = (live: LiveSession[] | null) => {
     if (!live) return;
     State.sessions.sync(live, Date.now());
+    peekAtNewFollowUps(island);
     State.notify();
   };
   void onEvent<LiveSession[]>("claude-sessions", sync);
   // The poller's first send can beat this listener: ask once ourselves.
   void Bridge.claudeSessions().then(sync);
+}
+
+/** Sessions already announced as needing follow-up, so each peeks only once. */
+const announced = new Set<string>();
+
+/** A session that newly needs you, or got stuck, shows the island once. */
+function peekAtNewFollowUps(island: Island) {
+  const now = Date.now();
+  const flagged = new Set<string>();
+  for (const s of State.sessions.list(now)) {
+    if (!followUp(s, now)) continue;
+    flagged.add(s.id);
+    if (announced.has(s.id)) continue;
+    announced.add(s.id);
+    State.setPillBadge(CLAUDE_ID, "approval");
+    island.reveal();
+  }
+  for (const id of [...announced]) if (!flagged.has(id)) announced.delete(id);
 }
 
 function handleHook(island: Island, payload: HookPayload) {
@@ -246,5 +266,6 @@ function handleHook(island: Island, payload: HookPayload) {
   // finished would keep the clock's click on the overview instead of the calendar.
   const live = busiest !== "idle" && busiest !== "finished";
   if (claude && live && claude.state !== "approval") claude.state = busiest;
+  peekAtNewFollowUps(island);
   State.notify();
 }
