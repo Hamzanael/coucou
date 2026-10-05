@@ -302,6 +302,23 @@ mod tests {
     }
 
     #[test]
+    fn passes_through_an_allow_that_answers_the_question() {
+        let json = decision_json(r#"{"behavior":"allow","updatedInput":{"questions":[{"question":"Pick?"}],"answers":{"Pick?":"B"}}}"#).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(v["hookSpecificOutput"]["hookEventName"], "PermissionRequest");
+        assert_eq!(v["hookSpecificOutput"]["decision"]["behavior"], "allow");
+        assert_eq!(v["hookSpecificOutput"]["decision"]["updatedInput"]["answers"]["Pick?"], "B");
+    }
+
+    #[test]
+    fn rejects_anything_but_an_allow_with_an_input_object() {
+        assert!(decision_json(r#"{"behavior":"deny","updatedInput":{}}"#).is_none());
+        assert!(decision_json(r#"{"behavior":"allow","updatedInput":"x"}"#).is_none());
+        assert!(decision_json(r#"{"behavior":"allow"}"#).is_none());
+        assert!(decision_json("{not json").is_none());
+    }
+
+    #[test]
     fn long_strings_are_cut_on_a_char_boundary() {
         let mut v = serde_json::json!({ "tool_input": { "content": "é".repeat(4000) } });
         truncate_strings(&mut v);
