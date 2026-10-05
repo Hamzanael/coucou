@@ -38,6 +38,8 @@ export interface Session {
   live?: boolean;
   /** Its last turn stopped mid-work, without a Stop event. */
   interrupted?: boolean;
+  /** Claude is showing a multiple-choice dialog: only the terminal can answer it. */
+  dialog?: boolean;
 }
 
 /** A running session as Rust reads it from ~/.claude/sessions. */
@@ -105,6 +107,7 @@ export class SessionStore {
     const before = s.step;
     s.updatedAt = now;
     s.interrupted = false;
+    s.dialog = name === "PreToolUse" && p.tool_name === "AskUserQuestion";
     if (cwd && !s.cwd) {
       s.cwd = cwd;
       s.project = lastPathComponent(cwd);

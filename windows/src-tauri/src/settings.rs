@@ -35,6 +35,13 @@ pub struct Settings {
     /// GitHub repos (`owner/name`) whose Actions runs the Pipelines view shows.
     #[serde(default)]
     pub pipeline_repos: Vec<String>,
+    /// Tell stale, unfinished Claude Code sessions to carry on (once each).
+    #[serde(default = "default_true")]
+    pub follow_up_auto_nudge: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 fn default_worktree_auto_days() -> u64 {
@@ -75,6 +82,7 @@ impl Default for Settings {
             worktree_auto_clean: false,
             worktree_auto_days: default_worktree_auto_days(),
             pipeline_repos: Vec::new(),
+            follow_up_auto_nudge: true,
         }
     }
 }

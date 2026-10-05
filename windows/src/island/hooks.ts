@@ -8,7 +8,7 @@ import { Sound } from "../core/sound";
 import { State } from "../core/state";
 import type { Island } from "./island";
 import { stepLabel, type HookPayload, type LiveSession } from "../core/sessions";
-import { followUp } from "../core/followup";
+import { followUp, nudgeCandidates } from "../core/followup";
 
 const CLAUDE_ID = "integration_claude";
 
@@ -71,11 +71,28 @@ export function registerHookHandlers(island: Island) {
     if (!live) return;
     State.sessions.sync(live, Date.now());
     peekAtNewFollowUps(island);
+    nudgeStaleSessions();
     State.notify();
   };
   void onEvent<LiveSession[]>("claude-sessions", sync);
   // The poller's first send can beat this listener: ask once ourselves.
   void Bridge.claudeSessions().then(sync);
+}
+
+/** Sessions Coucou already told to carry on, so each is nudged once. */
+const nudged = new Set<string>();
+
+const NUDGE =
+  "From Coucou, Hamza's desktop assistant: this session has been quiet for over 30 minutes after an " +
+  "unfinished turn. Please continue where you left off. If you need a decision from Hamza, ask it clearly and stop.";
+
+/** Stale, unfinished sessions get one nudge to carry on — never ones waiting on a question. */
+function nudgeStaleSessions() {
+  if (!State.settings.followUpAutoNudge) return;
+  for (const s of nudgeCandidates(State.sessions.list(Date.now()), nudged, Date.now())) {
+    nudged.add(s.id);
+    void Bridge.sendToSession(s.id, NUDGE).catch((err) => void Bridge.log(`nudge ${s.name ?? s.id}: ${err}`));
+  }
 }
 
 /** Sessions already announced as needing follow-up, so each peeks only once. */

@@ -179,6 +179,9 @@ export const Bridge = {
   calendarEvents: (since: number, until: number) =>
     call<CalendarEvent[]>("calendar_events", { since, until }),
 
+  /** Sends text into a running Claude Code session (it arrives as a message from Coucou). */
+  sendToSession: (sessionId: string, text: string) => callOrThrow<string>("send_to_session", { sessionId, text }),
+
   /** The running Claude Code sessions, asked for at start-up. */
   claudeSessions: () => call<LiveSession[]>("claude_sessions"),
 

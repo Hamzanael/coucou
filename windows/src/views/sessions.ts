@@ -73,16 +73,64 @@ export class SessionCard {
   private nowLabel = this.now.row.firstElementChild as HTMLElement;
   private buttons: HTMLElement = h("div");
   private buttonsKey = "";
+  private session: Session | null = null;
+  private replies = h("div", { class: "session-replies" });
+  private dialogHint = h("div", { class: "session-hint", text: "Multiple-choice question — answer it in the terminal" });
+  private input = h("input", { type: "text", class: "session-input", placeholder: "Reply to Claude…" }) as HTMLInputElement;
+  private status = h("span", { class: "session-status" });
 
-  constructor() {
+  constructor(private requestKeyboard: () => void) {
+    const quick = (label: string, text: string) =>
+      h("button", { class: "reply-chip", "data-nav": true, text: label, onclick: () => void this.send(text) });
+    const replyBtn = h("button", {
+      class: "reply-chip",
+      "data-nav": true,
+      text: "Reply…",
+      onclick: () => {
+        this.input.style.display = "";
+        // Typing needs the keyboard, which GNOME gives only below the top bar.
+        this.requestKeyboard();
+        window.setTimeout(() => this.input.focus(), 180);
+      },
+    });
+    this.input.style.display = "none";
+    this.input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && this.input.value.trim()) {
+        e.preventDefault();
+        void this.send(this.input.value.trim()).then(() => (this.input.value = ""));
+      }
+    });
+    this.replies.append(
+      quick("Continue", "Please continue."),
+      quick("Yes", "Yes."),
+      quick("No", "No."),
+      replyBtn,
+      this.status,
+    );
     this.el = h(
       "div",
       { class: "session-card" },
       h("div", { class: "session-head" }, this.dotEl, this.titleEl),
       this.metaEl,
       h("div", { class: "session-lines" }, this.you.row, this.claude.row, this.now.row),
+      this.dialogHint,
+      this.replies,
+      this.input,
       this.buttons,
     );
+  }
+
+  /** Into the session's inbox, labelled as coming from you through Coucou. */
+  private async send(text: string) {
+    const s = this.session;
+    if (!s) return;
+    this.status.textContent = "Sending…";
+    try {
+      await Bridge.sendToSession(s.id, `From Hamza via Coucou: ${text}`);
+      this.status.textContent = "Sent ✓";
+    } catch (err) {
+      this.status.textContent = String(err).replace(/^Error:\s*/, "");
+    }
   }
 
   private static line(who: string, cls = "") {
@@ -96,6 +144,15 @@ export class SessionCard {
   }
 
   update(s: Session) {
+    if (this.session?.id !== s.id) {
+      this.status.textContent = "";
+      this.input.value = "";
+      this.input.style.display = "none";
+    }
+    this.session = s;
+    // A message can't reach an open dialog: send them to the terminal instead.
+    this.dialogHint.style.display = s.dialog ? "" : "none";
+    this.replies.style.display = s.dialog || !s.pid ? "none" : "";
     const color = sessionAgent(s).color;
     this.dotEl.style.background = color;
     const title = s.title || s.name || s.project;

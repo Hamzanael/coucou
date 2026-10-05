@@ -39,6 +39,8 @@ export interface ViewActions {
   focusSession(id: string): void;
   /** Expand mode on / off. */
   toggleDashboard(): void;
+  /** Drop the island under the bar so a text field can take the keyboard. */
+  requestKeyboard(): void;
   setFocus(id: string): void;
   openTerminal(): void;
   /** The ↗ button: opens whatever the focused pill points at. */
@@ -179,7 +181,7 @@ function buildOverview(actions: ViewActions): ViewHost {
   );
 
   const crewRows = new Map<string, { el: HTMLElement; sig: string }>();
-  const sessionCard = new SessionCard();
+  const sessionCard = new SessionCard(() => actions.requestKeyboard());
   const cloudPill = h(
     "div",
     { class: "pill cloud-pill", "data-nav": true, tabindex: "0", title: "Pull a cloud session", onclick: () => actions.focusSession(CLOUD) },

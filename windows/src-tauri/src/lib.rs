@@ -7,6 +7,7 @@ mod cleanup;
 mod files;
 mod hooks;
 mod ide;
+mod inbox;
 mod worktrees;
 #[cfg(target_os = "linux")]
 mod health;
@@ -211,6 +212,20 @@ fn start_worktree_auto_clean(app: AppHandle) {
             }
         }
     });
+}
+
+/// Sends `text` into a running session (a reply, a follow-up). The socket is
+/// looked up from Claude Code's own records, never taken from the page.
+#[tauri::command]
+async fn send_to_session(session_id: String, text: String) -> Result<String, String> {
+    let sessions = tauri::async_runtime::spawn_blocking(claude_sessions::running)
+        .await
+        .map_err(|e| e.to_string())?;
+    let session = sessions.iter().find(|s| s.session_id == session_id).ok_or("That session is no longer running")?;
+    let socket = claude_sessions::socket_of(session.pid).ok_or("That session has no inbox")?;
+    let result = inbox::send(&socket, &text).map(|_| "Sent".to_string());
+    log::line(format!("message to {} ({} chars): {result:?}", session.name, text.chars().count()));
+    result
 }
 
 /// The running Claude Code sessions right now, for the page's first paint.
@@ -558,6 +573,7 @@ pub fn run() {
             teleport,
             focus_terminal,
             claude_sessions,
+            send_to_session,
             quit_app,
             hooks_status,
             hooks_preview,

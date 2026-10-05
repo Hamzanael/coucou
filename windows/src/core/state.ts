@@ -104,6 +104,8 @@ export interface Settings {
   worktreeAutoDays: number;
   /** GitHub repos (`owner/name`) whose Actions runs the Pipelines view shows. */
   pipelineRepos: string[];
+  /** Tell stale, unfinished Claude Code sessions to carry on (once each). */
+  followUpAutoNudge: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -123,6 +125,7 @@ export const DEFAULT_SETTINGS: Settings = {
   worktreeAutoClean: false,
   worktreeAutoDays: 7,
   pipelineRepos: [],
+  followUpAutoNudge: true,
 };
 
 type Listener = () => void;

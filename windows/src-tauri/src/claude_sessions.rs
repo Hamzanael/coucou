@@ -87,6 +87,13 @@ pub fn parse_agents(json: &str) -> Option<Vec<LiveSession>> {
     )
 }
 
+/// The session's inbox socket, from Claude Code's own record for that process.
+pub fn socket_of(pid: u32) -> Option<String> {
+    let path = crate::platform::home().join(".claude").join("sessions").join(format!("{pid}.json"));
+    let v: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(path).ok()?).ok()?;
+    v.get("messagingSocketPath")?.as_str().map(str::to_string)
+}
+
 /// A record outlives a crashed session: only trust it while its process runs.
 fn alive(pid: u32) -> bool {
     std::fs::read_to_string(format!("/proc/{pid}/comm")).is_ok_and(|c| c.trim() == "claude")

@@ -141,6 +141,10 @@ export class Island {
         if (session?.pid) void goToTerminal(session);
       },
       toggleDashboard: () => this.toggleDashboard(),
+      requestKeyboard: () => {
+        this.keyboardOpen = true;
+        this.syncWindowMode();
+      },
       setFocus: (id) => {
         State.setFocus(id);
         Sound.play("blip");
