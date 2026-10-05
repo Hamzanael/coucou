@@ -299,8 +299,8 @@ function buildOverview(actions: ViewActions): ViewHost {
         }
       }
       for (const t of members) {
-        // The badge and colour live in the avatar: those few changes rebuild one row.
-        const sig = `${t.pillBadge ?? ""}:${t.color}`;
+        // Only a colour change (the avatar's body) rebuilds a row; badges update in place.
+        const sig = t.color;
         let row = crewRows.get(t.id);
         if (!row || row.sig !== sig) {
           const el = buildPill(t, actions);
@@ -317,6 +317,7 @@ function buildOverview(actions: ViewActions): ViewHost {
         if (state && state.textContent !== stateText) state.textContent = stateText;
         if (state) state.className = flag ? `pill-state flag-${flag}` : "pill-state";
         row.el.classList.toggle("selected", t.id === selectedId);
+        setPillBadge(row.el, t.pillBadge ?? null);
       }
       const order = [...members.map((t) => crewRows.get(t.id)!.el), cloudPill];
       order.forEach((el, i) => {
@@ -364,15 +365,34 @@ function buildPill(task: AgentTask, actions: ViewActions): HTMLElement {
     (pill.querySelector(".lbl") as HTMLElement).style.color = "";
   });
 
-  if (task.pillBadge) {
-    const colors = { approval: "#F5A524", finished: "#22C55E", error: "#F4505E" } as const;
-    const icons = { approval: ICONS.bang, finished: ICONS.check, error: ICONS.xmark } as const;
-    const inner = h("i", { style: `background:${colors[task.pillBadge]}` }, svg(icons[task.pillBadge], 6, { stroke: task.pillBadge === "finished" ? 3 : 0 }));
-    const badge = h("div", { class: "pill-badge" }, inner);
-    badge.style.boxShadow = `0 0 4px ${colors[task.pillBadge]}99`;
-    pill.append(badge);
-  }
+  setPillBadge(pill, task.pillBadge ?? null);
+  pill.addEventListener("mousedown", () => diagClick("press", task.name));
+  pill.addEventListener("click", () => diagClick("click", task.name));
   return pill;
+}
+
+/** Puts (or clears) a pill's badge in place, so the row itself is never rebuilt. */
+function setPillBadge(pill: HTMLElement, badge: AgentTask["pillBadge"]) {
+  const current = pill.querySelector<HTMLElement>(".pill-badge");
+  if ((current?.dataset.kind ?? null) === (badge ?? null)) return;
+  current?.remove();
+  if (!badge) return;
+  const colors = { approval: "#F5A524", finished: "#22C55E", error: "#F4505E" } as const;
+  const icons = { approval: ICONS.bang, finished: ICONS.check, error: ICONS.xmark } as const;
+  const inner = h("i", { style: `background:${colors[badge]}` }, svg(icons[badge], 6, { stroke: badge === "finished" ? 3 : 0 }));
+  const el = h("div", { class: "pill-badge" }, inner);
+  el.dataset.kind = badge;
+  el.style.boxShadow = `0 0 4px ${colors[badge]}99`;
+  pill.append(el);
+}
+
+let lastClickLog = 0;
+/** Temporary: proves whether a row receives presses and clicks. */
+function diagClick(what: string, name: string) {
+  const now = Date.now();
+  if (what === "press" && now - lastClickLog < 300) return;
+  lastClickLog = now;
+  void Bridge.log(`diag row ${what} ${name}`);
 }
 
 let lastHoverLog = 0;
