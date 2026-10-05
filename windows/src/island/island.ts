@@ -35,6 +35,15 @@ const PRE_PROGRESS = USC.T_PROG_START - USC.T_DROP;
 
 const modeOrder = (m: IslandMode) => (m === "hidden" ? 0 : m === "compact" ? 1 : 2);
 
+let lastWheelLog = 0;
+/** Temporary: proves whether wheel events arrive and what they scroll. */
+function diagWheel(what: string) {
+  const now = Date.now();
+  if (now - lastWheelLog < 1500) return;
+  lastWheelLog = now;
+  void Bridge.log(`diag wheel ${what}`);
+}
+
 export class Island {
   readonly fsm = new IslandStateMachine();
 
@@ -617,17 +626,21 @@ export class Island {
       "wheel",
       (e) => {
         let el = e.target instanceof Element ? e.target : null;
+        const from = el instanceof HTMLElement ? el.className : String(el);
         while (el && el !== document.body) {
           if (el instanceof HTMLElement && el.scrollHeight > el.clientHeight + 1) {
             const overflow = getComputedStyle(el).overflowY;
             if (overflow === "auto" || overflow === "scroll") {
+              const before = el.scrollTop;
               el.scrollTop += e.deltaMode === 1 ? e.deltaY * 32 : e.deltaY;
+              diagWheel(`on ${from} → ${el.className} ${before}→${el.scrollTop} (Δ${e.deltaY} m${e.deltaMode})`);
               e.preventDefault();
               return;
             }
           }
           el = el.parentElement;
         }
+        diagWheel(`on ${from}: no scrollable list (Δ${e.deltaY})`);
       },
       { passive: false },
     );

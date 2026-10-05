@@ -109,6 +109,12 @@ export function chatPromptHeight(messageCount: number): number {
 }
 
 let dashboard = { w: 1200, h: 800 };
+/** The open island's width; wider on Linux, where it holds the session list. */
+let expandedWidth = EXPANDED_W;
+
+export function setExpandedWidth(w: number) {
+  expandedWidth = w;
+}
 
 export function setDashboardSize(size: { w: number; h: number }) {
   dashboard = size;
@@ -132,7 +138,7 @@ export function islandSize(
     case "expanded": {
       if (view === "dashboard") return { ...dashboard };
       const h = view === "prompt" ? chatPromptHeight(chatCount) : VIEW_LAYOUTS[view].height;
-      return { w: EXPANDED_W, h };
+      return { w: expandedWidth, h };
     }
   }
 }
