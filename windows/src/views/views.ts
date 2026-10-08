@@ -40,8 +40,8 @@ export interface ViewActions {
   focusSession(id: string): void;
   /** Expand mode on / off. */
   toggleDashboard(): void;
-  /** Drop the island under the bar so a text field can take the keyboard. */
-  requestKeyboard(): void;
+  /** Open the compose box (it can take the keyboard; the island can't). */
+  compose(target: string, placeholder: string): void;
   setFocus(id: string): void;
   openTerminal(): void;
   /** The ↗ button: opens whatever the focused pill points at. */
@@ -186,7 +186,7 @@ function buildOverview(actions: ViewActions): ViewHost {
   );
 
   const crewRows = new Map<string, { el: HTMLElement; sig: string }>();
-  const sessionCard = new SessionCard(() => actions.requestKeyboard());
+  const sessionCard = new SessionCard((target, placeholder) => actions.compose(target, placeholder));
   const cloudPill = h(
     "div",
     { class: "pill cloud-pill", "data-nav": true, tabindex: "0", title: "Pull a cloud session", onclick: () => actions.focusSession(CLOUD) },
@@ -692,7 +692,7 @@ export function buildViews(
   map.set("confused", buildConfused());
   map.set("note", buildNote());
   map.set("settings", buildSettings(actions));
-  map.set("prompt", buildPrompt(onChatHeightChange));
+  map.set("prompt", buildPrompt(onChatHeightChange, (placeholder) => actions.compose("chat", placeholder)));
   map.set("upload", buildUpload());
   map.set("uploading", buildUploading());
   map.set("choose", buildChoose(actions));

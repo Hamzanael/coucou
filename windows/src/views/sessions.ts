@@ -76,10 +76,9 @@ export class SessionCard {
   private session: Session | null = null;
   private replies = h("div", { class: "session-replies" });
   private dialogHint = h("div", { class: "session-hint", text: "Multiple-choice question — answer it in the terminal" });
-  private input = h("input", { type: "text", class: "session-input", placeholder: "Reply to Claude…" }) as HTMLInputElement;
   private status = h("span", { class: "session-status" });
 
-  constructor(private requestKeyboard: () => void) {
+  constructor(private compose: (target: string, placeholder: string) => void) {
     const quick = (label: string, text: string) =>
       h("button", { class: "reply-chip", "data-nav": true, text: label, onclick: () => void this.send(text) });
     const replyBtn = h("button", {
@@ -87,18 +86,14 @@ export class SessionCard {
       "data-nav": true,
       text: "Reply…",
       onclick: () => {
-        this.input.style.display = "";
-        // Typing needs the keyboard, which GNOME gives only below the top bar.
-        this.requestKeyboard();
-        window.setTimeout(() => this.input.focus(), 180);
+        const s = this.session;
+        // The island can't take the keyboard: the compose box types for it.
+        if (s) this.compose(`session:${s.id}`, `Reply to ${s.title || s.name || s.project}…`);
       },
     });
-    this.input.style.display = "none";
-    this.input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && this.input.value.trim()) {
-        e.preventDefault();
-        void this.send(this.input.value.trim()).then(() => (this.input.value = ""));
-      }
+    window.addEventListener("coucou-compose", (e) => {
+      const { target, text } = (e as CustomEvent<{ target: string; text: string }>).detail;
+      if (this.session && target === `session:${this.session.id}`) void this.send(text);
     });
     this.replies.append(
       quick("Continue", "Please continue."),
@@ -115,7 +110,6 @@ export class SessionCard {
       h("div", { class: "session-lines" }, this.you.row, this.claude.row, this.now.row),
       this.dialogHint,
       this.replies,
-      this.input,
       this.buttons,
     );
   }
@@ -144,11 +138,7 @@ export class SessionCard {
   }
 
   update(s: Session) {
-    if (this.session?.id !== s.id) {
-      this.status.textContent = "";
-      this.input.value = "";
-      this.input.style.display = "none";
-    }
+    if (this.session?.id !== s.id) this.status.textContent = "";
     this.session = s;
     if (terminalStatus && this.status.textContent !== terminalStatus && !this.status.textContent?.startsWith("Sen")) {
       this.status.textContent = terminalStatus;

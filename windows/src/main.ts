@@ -63,6 +63,11 @@ async function main() {
 
   await onEvent<null>("screen-changed", () => void Bridge.reposition());
 
+  // Text typed in the compose box goes to whichever view asked for it.
+  await onEvent<{ target: string; placeholder: string }>("compose-submit", ({ target, placeholder: text }) => {
+    window.dispatchEvent(new CustomEvent("coucou-compose", { detail: { target, text } }));
+  });
+
   // Super+C (a GNOME custom shortcut running `coucou --toggle`).
   await onEvent<null>("shortcut", () => island.toggleFromShortcut());
 

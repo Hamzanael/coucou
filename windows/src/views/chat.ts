@@ -36,7 +36,7 @@ function contextChip(label: string): HTMLElement {
   return chip;
 }
 
-export function buildPrompt(onHeightChange: () => void): ViewHost {
+export function buildPrompt(onHeightChange: () => void, compose: (placeholder: string) => void): ViewHost {
   const chipRow = h("div", { class: "chip-row" });
   const log = h("div", { class: "chat-log" });
   const input = h("input", {
@@ -93,6 +93,19 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
   }
 
   send.addEventListener("click", () => void submit());
+  // The island never has the keyboard on Linux: typing happens in the compose
+  // box, which hands the text back here.
+  input.addEventListener("mousedown", (e) => {
+    if (!State.clock) return;
+    e.preventDefault();
+    if (!sending) compose(input.placeholder);
+  });
+  window.addEventListener("coucou-compose", (e) => {
+    const { target, text } = (e as CustomEvent<{ target: string; text: string }>).detail;
+    if (target !== "chat") return;
+    input.value = text;
+    void submit();
+  });
   input.addEventListener("keydown", (e) => {
     if ((e as KeyboardEvent).key === "Enter") {
       e.preventDefault();
@@ -124,6 +137,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
 
       input.placeholder = State.chatHistory.length === 0 ? "Ask me anything…" : "Continue…";
       input.disabled = sending;
+      input.readOnly = !!State.clock;
     },
     focus() {
       input.focus();

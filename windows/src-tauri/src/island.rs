@@ -386,17 +386,6 @@ pub fn make_non_activating(win: &WebviewWindow) {
     // WebKit consumes button presses before they bubble to the window, so the
     // timestamp is taken on every widget, ahead of WebKit's own handler.
     record_press_times(gtk_win.upcast_ref());
-    gtk_win.add_events(gtk::gdk::EventMask::FOCUS_CHANGE_MASK);
-    let page = win.clone();
-    gtk_win.connect_focus_in_event(move |_, _| {
-        let _ = page.emit("window-focus", true);
-        gtk::glib::Propagation::Proceed
-    });
-    let page = win.clone();
-    gtk_win.connect_focus_out_event(move |_, _| {
-        let _ = page.emit("window-focus", false);
-        gtk::glib::Propagation::Proceed
-    });
 }
 
 /// Last X timestamp of a button press on the island: GNOME only lets a window
@@ -431,41 +420,25 @@ pub fn note_user_time(time: u32) {
     LAST_PRESS.store(time, Ordering::Relaxed);
 }
 
-/// Bar mode: override-redirect over the top bar, never focused. Popup mode: a
-/// managed, undecorated, keep-above window GNOME places under the top bar and
-/// can focus — the only way to type into it, see Esc, or learn of a click
-/// elsewhere (focus-out). Switching needs an unmap/map.
+/// The island never takes the keyboard on Linux: it stays override-redirect for
+/// good, since switching a window between managed and override-redirect left
+/// GNOME routing no input to it. Typing happens in the compose window instead.
 #[cfg(target_os = "linux")]
-pub fn set_popup(win: &WebviewWindow, popup: bool, focus: bool) {
-    use gtk::gdk::WindowTypeHint;
+pub fn set_activating(_win: &WebviewWindow, _activating: bool) {}
+
+/// Brings a normal (managed) window to the front with the keyboard, dated by
+/// the island click that asked for it so GNOME lets it take focus.
+#[cfg(target_os = "linux")]
+pub fn present(win: &WebviewWindow) {
     use gtk::prelude::*;
-    let Ok(gtk_win) = win.gtk_window() else { return };
-    let Some(gdk_win) = gtk_win.window() else { return };
-    gtk_win.hide();
-    gdk_win.set_override_redirect(!popup);
-    gtk_win.set_type_hint(if popup { WindowTypeHint::Utility } else { WindowTypeHint::Normal });
-    gtk_win.set_keep_above(true);
-    gtk_win.set_skip_taskbar_hint(true);
-    gtk_win.set_skip_pager_hint(true);
-    gtk_win.set_accept_focus(popup);
-    gtk_win.set_focus_on_map(false);
-    gtk_win.show();
-    if popup && focus {
+    if let Ok(gtk_win) = win.gtk_window() {
         gtk_win.present_with_time(LAST_PRESS.load(Ordering::Relaxed));
     }
 }
 
-/// The popup is a managed window GNOME can focus; activating it is asking for
-/// focus with the click that opened the chat.
-#[cfg(target_os = "linux")]
-pub fn set_activating(win: &WebviewWindow, activating: bool) {
-    use gtk::prelude::*;
-    if !activating {
-        return;
-    }
-    if let Ok(gtk_win) = win.gtk_window() {
-        gtk_win.present_with_time(LAST_PRESS.load(Ordering::Relaxed));
-    }
+#[cfg(not(target_os = "linux"))]
+pub fn present(win: &WebviewWindow) {
+    let _ = win.set_focus();
 }
 
 /// Position, size and scale of the monitor the island lives on. Any change here

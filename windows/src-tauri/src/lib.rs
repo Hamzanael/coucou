@@ -145,17 +145,6 @@ fn focus_window(app: AppHandle, focused: bool) {
     }
 }
 
-/// Linux: bar (pill / compact) ⇄ popup (expanded). No-op elsewhere.
-#[tauri::command]
-fn set_window_mode(app: AppHandle, popup: bool, focus: bool) {
-    #[cfg(target_os = "linux")]
-    if let Some(win) = island::window(&app) {
-        island::set_popup(&win, popup, focus);
-    }
-    #[cfg(not(target_os = "linux"))]
-    let _ = (app, popup, focus);
-}
-
 #[tauri::command]
 fn reposition(app: AppHandle, shared: State<Shared>) {
     let pref = shared.settings.lock().unwrap().screen.clone();
@@ -481,14 +470,78 @@ const BROWSER_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreen
 
 /// In a dev build the pages are served by Vite, so the second window needs the
 /// absolute dev URL; a bundled build resolves it inside the app bundle.
-fn settings_page_url(app: &AppHandle) -> WebviewUrl {
+fn page_url(app: &AppHandle, page: &str) -> WebviewUrl {
     #[cfg(dev)]
     if let Some(mut base) = app.config().build.dev_url.clone() {
-        base.set_path("/settings.html");
+        base.set_path(&format!("/{page}"));
         return WebviewUrl::External(base);
     }
     let _ = app;
-    WebviewUrl::App("settings.html".into())
+    WebviewUrl::App(page.into())
+}
+
+/// The compose box: a small normal window under the island for typing (the Ask
+/// tab, a reply to a session). Created hidden at launch like the settings window
+/// and only shown and hidden — the island itself never takes the keyboard.
+fn create_compose_window(app: &AppHandle) {
+    let url = page_url(app, "compose.html");
+    match WebviewWindowBuilder::new(app, "compose", url)
+        .additional_browser_args(BROWSER_ARGS)
+        .title("Coucou")
+        .inner_size(600.0, 64.0)
+        .resizable(false)
+        .decorations(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .visible(false)
+        .build()
+    {
+        Ok(win) => {
+            let hidden = win.clone();
+            win.on_window_event(move |event| {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = hidden.hide();
+                }
+            });
+        }
+        Err(err) => log::line(format!("compose window failed: {err}")),
+    }
+}
+
+#[derive(Serialize, Clone)]
+struct ComposeRequest {
+    target: String,
+    placeholder: String,
+}
+
+/// Shows the compose box centred under the top bar, ready to type.
+#[tauri::command]
+fn open_compose(app: AppHandle, shared: State<Shared>, target: String, placeholder: String) {
+    let Some(win) = app.get_webview_window("compose") else { return };
+    let pref = shared.settings.lock().unwrap().screen.clone();
+    let screen = island::screen_info(&app, &pref);
+    let x = screen.x + (screen.width - 600.0) / 2.0;
+    let _ = win.set_position(tauri::LogicalPosition::new(x, screen.y + 300.0));
+    let _ = win.emit_to("compose", "compose-open", ComposeRequest { target, placeholder });
+    let _ = win.show();
+    island::present(&win);
+}
+
+/// Enter in the compose box: the text goes to the island, the box goes away.
+#[tauri::command]
+fn compose_submit(app: AppHandle, target: String, text: String) {
+    if let Some(win) = app.get_webview_window("compose") {
+        let _ = win.hide();
+    }
+    let _ = app.emit_to(island::WINDOW_LABEL, "compose-submit", ComposeRequest { target, placeholder: text });
+}
+
+#[tauri::command]
+fn compose_cancel(app: AppHandle) {
+    if let Some(win) = app.get_webview_window("compose") {
+        let _ = win.hide();
+    }
 }
 
 /// The settings window is created hidden at launch and only ever shown and
@@ -496,7 +549,7 @@ fn settings_page_url(app: &AppHandle) -> WebviewUrl {
 /// not — silently comes up blank in this app, so the window that works is the
 /// one that exists before the island's webview does.
 fn create_settings_window(app: &AppHandle) {
-    let url = settings_page_url(app);
+    let url = page_url(app, "settings.html");
     match WebviewWindowBuilder::new(app, "settings", url)
         .additional_browser_args(BROWSER_ARGS)
         .title("Settings — Coucou")
@@ -568,7 +621,6 @@ pub fn run() {
             set_collapsed,
             set_island_rect,
             focus_window,
-            set_window_mode,
             reposition,
             open_url,
             open_in_ide,
@@ -579,6 +631,9 @@ pub fn run() {
             teleport,
             focus_terminal,
             claude_sessions,
+            open_compose,
+            compose_submit,
+            compose_cancel,
             send_to_session,
             quit_app,
             hooks_status,
@@ -605,6 +660,7 @@ pub fn run() {
             tray::build(&handle)?;
             // Before the island: see create_settings_window.
             create_settings_window(&handle);
+            create_compose_window(&handle);
 
             if let Some(win) = island::window(&handle) {
                 island::make_non_activating(&win);

@@ -182,6 +182,9 @@ export const Bridge = {
   calendarEvents: (since: number, until: number) =>
     call<CalendarEvent[]>("calendar_events", { since, until }),
 
+  /** Opens the compose box (a normal window that can take the keyboard) for `target`. */
+  openCompose: (target: string, placeholder: string) => call<void>("open_compose", { target, placeholder }),
+
   /** Sends text into a running Claude Code session (it arrives as a message from Coucou). */
   sendToSession: (sessionId: string, text: string) => callOrThrow<string>("send_to_session", { sessionId, text }),
 

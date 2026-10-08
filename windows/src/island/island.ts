@@ -97,12 +97,6 @@ export class Island {
    * mouse moves at the last position it saw — which must not count as hovering.
    */
   private pointerInside = true;
-  /** The window is the focusable popup under the bar (else it hangs from the bar). */
-  private popup = false;
-  /** Opened from the keyboard shortcut: stays a popup so the keys work. */
-  private keyboardOpen = false;
-  /** Focus-out only means "clicked elsewhere" after the popup actually had focus. */
-  private hadFocus = false;
   private envelope = { w: 0, h: 0 };
   private homeCollapseAt: number | null = null;
 
@@ -150,10 +144,7 @@ export class Island {
         if (session?.pid) void goToTerminal(session);
       },
       toggleDashboard: () => this.toggleDashboard(),
-      requestKeyboard: () => {
-        this.keyboardOpen = true;
-        this.syncWindowMode();
-      },
+      compose: (target, placeholder) => void Bridge.openCompose(target, placeholder),
       setFocus: (id) => {
         State.setFocus(id);
         Sound.play("blip");
@@ -324,8 +315,7 @@ export class Island {
     if (mode === prev) return;
     void Bridge.log(`diag t=${Math.round(performance.now())} mode ${prev}→${mode} vis=${document.visibilityState}`);
     State.mode = mode;
-    if (mode !== "expanded") this.keyboardOpen = false;
-    this.syncWindowMode();
+    if (this.windowIsIsland) this.fsm.homeToPetitDelay = 1.5;
     if (mode === "expanded") Sound.play("open");
     if (prev === "expanded") {
       Sound.play("close");
@@ -739,32 +729,10 @@ export class Island {
     this.setView("dashboard");
   }
 
-  /** Global shortcut: open focused on the default view, or close if open. */
+  /** Global shortcut: open on the default view, or close if open. */
   toggleFromShortcut() {
-    if (State.mode === "expanded" && this.popup) {
-      this.close();
-      return;
-    }
-    this.keyboardOpen = true;
-    if (State.mode === "expanded") this.syncWindowMode();
+    if (State.mode === "expanded") this.close();
     else this.fsm.forceHome();
-  }
-
-  /**
-   * GNOME gives the keyboard only to windows under its top bar, and only windows
-   * that never take focus may sit over it. So the open island hangs from the bar
-   * like a notch, and drops under it just for typing: the Ask tab or the
-   * keyboard shortcut. Hanging from the bar, it closes soon after the pointer
-   * leaves, since a click elsewhere cannot be seen there.
-   */
-  private syncWindowMode() {
-    if (!this.windowIsIsland) return;
-    const want = State.mode === "expanded" && (this.keyboardOpen || State.view === "prompt");
-    this.fsm.homeToPetitDelay = want ? State.settings.autoCloseInterval : 1.5;
-    if (want === this.popup) return;
-    this.popup = want;
-    this.hadFocus = false;
-    void Bridge.setWindowMode(want, want);
   }
 
   /** Logical width of the window the island is centred in. */
@@ -777,12 +745,6 @@ export class Island {
     this.windowIsIsland = true;
     document.addEventListener("visibilitychange", () =>
       void Bridge.log(`diag t=${Math.round(performance.now())} visibility ${document.visibilityState}`));
-    void onEvent<boolean>("window-focus", (focused) => {
-      // The unmap/map of a mode switch fires focus-out before the popup ever had
-      // focus; only a focus that was gained and then lost means "clicked elsewhere".
-      if (focused) this.hadFocus = true;
-      else if (this.hadFocus && State.mode === "expanded" && !State.isPinned) this.close();
-    });
     this.useDomPointer();
     this.pushedRect = { x: -1, y: -1, w: -1, h: -1 };
     this.applyGeometry();
@@ -1098,7 +1060,6 @@ export class Island {
     if (this.lastSyncedView !== State.view) {
       const wasChat = this.lastSyncedView === "prompt";
       this.lastSyncedView = State.view;
-      this.syncWindowMode();
       if (State.view === "prompt") {
         void Bridge.focusWindow(true);
         window.setTimeout(() => this.views.get("prompt")?.focus?.(), 120);
