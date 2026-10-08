@@ -16,6 +16,8 @@ jobs:
   build:
     # The oldest supported runner, so the binaries run on Ubuntu 22.04 and later.
     runs-on: ubuntu-22.04
+    # A hung apt mirror once sat on this job for the default six hours.
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: windows
